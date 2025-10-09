@@ -1,0 +1,47 @@
+name: Update Version
+
+on:
+  push:
+    paths:
+      - 'CHANGELOG.md'
+
+jobs:
+  update-version:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Extract version from CHANGELOG.md
+        id: get_version
+        run: |
+          VERSION=$(grep -m 1 '^## [0-9]\{4\}-[0-9]\{2\}-[0-9]\{2\}' CHANGELOG.md | sed 's/## //')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Extracted version: $VERSION"
+      
+      - name: Get current branch name
+        id: get_branch
+        run: |
+          BRANCH=${GITHUB_REF#refs/heads/}
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "Current branch: $BRANCH"
+      
+      - name: Update version.json
+        run: |
+          cat > version.json << EOF
+          {
+            "version": "${{ steps.get_version.outputs.version }}",
+            "branch": "${{ steps.get_branch.outputs.branch }}"
+          }
+          EOF
+          cat version.json
+      
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add version.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Update version to ${{ steps.get_version.outputs.version }} on branch ${{ steps.get_branch.outputs.branch }}" && git push)

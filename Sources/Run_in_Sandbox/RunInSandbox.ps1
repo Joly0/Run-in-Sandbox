@@ -38,6 +38,13 @@ $Full_Startup_Path_Quoted = """$Full_Startup_Path"""
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 
 # Load common functions
+
+# Start asynchronous update check (non-blocking)
+Start-Job -ScriptBlock {
+    param($Run_in_Sandbox_Folder)
+    . "$Run_in_Sandbox_Folder\CommonFunctions.ps1"
+    Start-UpdateCheck
+} -ArgumentList $Run_in_Sandbox_Folder | Out-Null
 . "$Run_in_Sandbox_Folder\CommonFunctions.ps1"
 
 $xml = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
@@ -229,7 +236,7 @@ function New-WSB {
     )
     
     # Prepare Notepad payload
-    $np = Add-NotepadToSandbox -EnforceEnUsFallback
+    Add-NotepadToSandbox -EnforceEnUsFallback
     
     New-Item $Sandbox_File_Path -type file -Force | Out-Null
     Add-Content -LiteralPath $Sandbox_File_Path -Value "<Configuration>"
@@ -651,4 +658,11 @@ if ($WSB_Cleanup -eq $True) {
     Remove-Item -LiteralPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp" -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "$Run_in_Sandbox_Folder\NotepadPayload" -Force -Recurse -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath "$Run_in_Sandbox_Folder\startup-scripts\OriginalCommand.txt" -Force -ErrorAction SilentlyContinue
+}
+
+# Check for pending update installation (runs regardless of cleanup setting)
+$UpdateDecision = Get-UpdateDecision
+if ($UpdateDecision -and $UpdateDecision.action -eq "update") {
+    Write-Host "Installing update to version $($UpdateDecision.latestVersion)..." -ForegroundColor Green
+    Invoke-UpdateInstallation -LatestVersion $UpdateDecision.latestVersion
 }

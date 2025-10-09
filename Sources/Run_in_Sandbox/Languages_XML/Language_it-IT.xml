@@ -11,4 +11,20 @@
 	<MSI>Eseguire lo MSI nella Sandbox</MSI>
 	<ZIP>Estrarre lo ZIP in una Sandbox</ZIP>
 	<Folder>Condividere questa cartella in una Sandbox</Folder>
+	<Update>
+		<ToastTitle>Aggiornamento Run-in-Sandbox disponibile</ToastTitle>
+		<ToastMessage>La versione {0} è disponibile. Fare clic per visualizzare le modifiche.</ToastMessage>
+		<DialogTitle>Aggiornamento Run-in-Sandbox - Versione {0}</DialogTitle>
+		<CurrentVersionLabel>Versione attuale</CurrentVersionLabel>
+		<LatestVersionLabel>Ultima versione</LatestVersionLabel>
+		<DialogFooter>Nota: L'aggiornamento verrà installato automaticamente dopo aver chiuso il sandbox. Le impostazioni verranno conservate.</DialogFooter>
+		<UpdateButton>Aggiorna ora</UpdateButton>
+		<DismissButton>Ignora per oggi</DismissButton>
+		<UpdateScheduledMessage>L'aggiornamento verrà installato dopo la chiusura del sandbox.</UpdateScheduledMessage>
+		<UpdateSuccessTitle>Aggiornamento completato</UpdateSuccessTitle>
+		<UpdateSuccessMessage>Run-in-Sandbox è stato aggiornato alla versione {0}</UpdateSuccessMessage>
+		<RollbackTitle>Aggiornamento annullato</RollbackTitle>
+		<RollbackMessage>L'aggiornamento è fallito ed è stato ripristinato alla versione {0}. Motivo: {1}</RollbackMessage>
+		<ErrorTitle>Errore di aggiornamento</ErrorTitle>
+	</Update>
 </Configuration>

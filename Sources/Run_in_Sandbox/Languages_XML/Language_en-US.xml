@@ -11,4 +11,20 @@
 <MSI>Run the MSI in Sandbox</MSI>
 <ZIP>Extract the ZIP in Sandbox</ZIP>
 <Folder>Share this folder in a Sandbox</Folder>
+<Update>
+	<ToastTitle>Run-in-Sandbox Update Available</ToastTitle>
+	<ToastMessage>Version {0} is available. Click to view changes.</ToastMessage>
+	<DialogTitle>Run-in-Sandbox Update - Version {0}</DialogTitle>
+	<CurrentVersionLabel>Current Version</CurrentVersionLabel>
+	<LatestVersionLabel>Latest Version</LatestVersionLabel>
+	<DialogFooter>Note: Update will be installed automatically after you close the sandbox. Your settings will be preserved.</DialogFooter>
+	<UpdateButton>Update Now</UpdateButton>
+	<DismissButton>Dismiss for Today</DismissButton>
+	<UpdateScheduledMessage>Update will install after you close the sandbox.</UpdateScheduledMessage>
+	<UpdateSuccessTitle>Update Complete</UpdateSuccessTitle>
+	<UpdateSuccessMessage>Run-in-Sandbox has been updated to version {0}</UpdateSuccessMessage>
+	<RollbackTitle>Update Rolled Back</RollbackTitle>
+	<RollbackMessage>Update failed and was rolled back to version {0}. Reason: {1}</RollbackMessage>
+	<ErrorTitle>Update Error</ErrorTitle>
+</Update>
 </Configuration>

@@ -1,0 +1,63 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" 
+        Title="PLACEHOLDER_TITLE" 
+        Height="600" 
+        Width="700" 
+        WindowStartupLocation="CenterScreen" 
+        Topmost="True">
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        
+        <StackPanel Grid.Row="0" Margin="0,0,0,15">
+            <TextBlock FontSize="14" FontWeight="Bold">
+                <Run Text="PLACEHOLDER_CURRENT_LABEL"/>
+                <Run Text="PLACEHOLDER_CURRENT_VERSION" Foreground="Blue"/>
+            </TextBlock>
+            <TextBlock FontSize="14" FontWeight="Bold" Margin="0,5,0,0">
+                <Run Text="PLACEHOLDER_LATEST_LABEL"/>
+                <Run Text="PLACEHOLDER_LATEST_VERSION" Foreground="Green"/>
+            </TextBlock>
+        </StackPanel>
+        
+        <Border Grid.Row="1" BorderBrush="Gray" BorderThickness="1" Margin="0,0,0,15">
+            <ScrollViewer>
+                <TextBox Name="ChangelogText" 
+                         IsReadOnly="True" 
+                         TextWrapping="Wrap" 
+                         FontFamily="Consolas" 
+                         FontSize="10" 
+                         BorderThickness="0" 
+                         Padding="10" 
+                         Text="PLACEHOLDER_CHANGELOG"/>
+            </ScrollViewer>
+        </Border>
+        
+        <TextBlock Grid.Row="2" 
+                   TextWrapping="Wrap" 
+                   Margin="0,0,0,15" 
+                   Foreground="DarkGray" 
+                   FontSize="11" 
+                   Text="PLACEHOLDER_FOOTER"/>
+        
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Name="DismissButton" 
+                    Content="PLACEHOLDER_DISMISS_BUTTON" 
+                    Width="140" 
+                    Height="35" 
+                    Margin="0,0,10,0" 
+                    FontSize="12"/>
+            <Button Name="UpdateButton" 
+                    Content="PLACEHOLDER_UPDATE_BUTTON" 
+                    Width="140" 
+                    Height="35" 
+                    Background="Green" 
+                    Foreground="White" 
+                    FontSize="12" 
+                    FontWeight="Bold"/>
+        </StackPanel>
+    </Grid>
+</Window>
