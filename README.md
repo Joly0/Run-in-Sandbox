@@ -62,3 +62,33 @@ This method allows you to use the parameters "-NoCheckpoint" to skip creation of
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Joly0/Run-in-Sandbox&type=Date)](https://www.star-history.com/#Joly0/Run-in-Sandbox&Date)
+
+## Reliable branch selection when running via iex
+
+Passing parameters through the classic iex pattern can fail to bind -Branch to the downloaded script, which causes the installer to fall back to version.json. Use one of the following robust patterns to ensure the branch is honored.
+
+- Option A — Robust parameter binding with ScriptBlock (recommended):
+  - Replace dev with your target branch.
+  - Works in Windows PowerShell 5.1+ and PowerShell 7+.
+  ```
+  iex '(&{ $sb = [ScriptBlock]::Create((irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/dev/Install_Run-in-Sandbox.ps1)); & $sb -Branch "dev" })'
+  ```
+
+- Option B — Environment variable override (simple and reliable):
+  - Set an environment variable that the installer reads before version.json. Replace dev with your target branch.
+  ```
+  $env:RIS_BRANCH = 'dev'
+  iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/dev/Install_Run-in-Sandbox.ps1) }"
+  ```
+
+Behavior and precedence
+- The installer in [Install_Run-in-Sandbox.ps1](Install_Run-in-Sandbox.ps1) resolves branch using this precedence:
+  1) -Branch parameter (if bound)
+  2) Environment variable RIS_BRANCH or RUN_IN_SANDBOX_BRANCH
+  3) Invocation parsing fallbacks (may not work in all iex styles)
+  4) Existing installation&#39;s version.json
+  5) Default master
+
+Notes
+- If you use the basic iex pattern with a subshell, the -Branch argument may not bind to the script&#39;s param() and can be ignored. Use Option A or B above to guarantee the desired branch is used.
+- All URLs in your command should match the desired branch (don&#39;t mix dev URL with master branch value, or vice versa).

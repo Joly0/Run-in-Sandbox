@@ -5,49 +5,203 @@ param (
     [String]$Branch = ""
 )
 
+if (-not $AutoUpdate) {
+    $BranchSource = $null
+
+    if ($PSBoundParameters.ContainsKey("Branch") -and $Branch) {
+        $BranchSource = "Parameter"
+        Write-Host "[DEBUG] Branch parameter supplied: '$Branch'" -ForegroundColor Cyan
+    } else {
+        Write-Host "[DEBUG] Branch parameter NOT supplied (using detection)" -ForegroundColor Yellow
+
+        if ($args -and $args.Count -gt 0) {
+            Write-Host ("[DEBUG] Raw arguments: " + ($args -join ' ')) -ForegroundColor DarkCyan
+            for ($i = 0; $i -lt $args.Count; $i++) {
+                if ($args[$i] -eq "-Branch" -or $args[$i] -eq "/Branch") {
+                    if ($i + 1 -lt $args.Count) {
+                        $Branch = $args[$i + 1]
+                        $BranchSource = "Args"
+                        Write-Host "[DEBUG] Branch extracted from raw arguments: '$Branch'" -ForegroundColor Cyan
+                    }
+                    break
+                }
+            }
+        }
+
+        if (-not $Branch -and $MyInvocation.Line) {
+            Write-Host "[DEBUG] Invocation line: $($MyInvocation.Line)" -ForegroundColor DarkCyan
+            if ($MyInvocation.Line -match '(?i)(?:^|\s)-Branch\s+(?:"([^"]+)"|''([^'']+)''|([^\s"`]+))') {
+                $BranchCandidate = $Matches[1]
+                if (-not $BranchCandidate) { $BranchCandidate = $Matches[2] }
+                if (-not $BranchCandidate) { $BranchCandidate = $Matches[3] }
+                if ($BranchCandidate) {
+                    $Branch = $BranchCandidate
+                    $BranchSource = "InvocationLine"
+                    Write-Host "[DEBUG] Branch parsed from invocation line: '$Branch'" -ForegroundColor Cyan
+                }
+            }
+        }
+
+        if (-not $Branch) {
+            foreach ($__bEnv in @("RIS_BRANCH", "RUN_IN_SANDBOX_BRANCH")) {
+                $val = (Get-Item -Path Env:$__bEnv -ErrorAction SilentlyContinue).Value
+                if ($val) {
+                    $Branch = $val
+                    $BranchSource = "EnvVar:$__bEnv"
+                    Write-Host "[DEBUG] Branch sourced from environment variable ${__bEnv}: '$Branch'" -ForegroundColor Cyan
+                    break
+                }
+            }
+        }
+    }
+
+    if ($Branch) {
+        Write-Host "[DEBUG] Effective branch detected from $BranchSource => '$Branch'" -ForegroundColor Green
+    } else {
+        Write-Host "[DEBUG] No branch detected from parameters/args/env (will resolve from version.json or default)" -ForegroundColor Yellow
+    }
+}
+
+# Resolve environment and branch before any elevation attempts
+$Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
+$IsInstalled = Test-Path $Run_in_Sandbox_Folder
+
+$ResolvedBranch = $null
+if ($Branch) {
+    $ResolvedBranch = $Branch
+} elseif ($IsInstalled) {
+    $VersionJson = Join-Path $Run_in_Sandbox_Folder "version.json"
+    if (Test-Path $VersionJson) {
+        try {
+            $VersionData = Get-Content $VersionJson -Raw | ConvertFrom-Json
+            if ($VersionData.branch) {
+                $ResolvedBranch = $VersionData.branch
+            }
+        } catch {
+            if (-not $AutoUpdate) {
+                Write-Host "[DEBUG] Failed to read version.json: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+    }
+}
+
+if (-not $ResolvedBranch) {
+    $ResolvedBranch = "master"
+}
+
+$Branch = $ResolvedBranch
+if (-not $AutoUpdate) {
+    Write-Host "[DEBUG] Branch resolved before elevation: $Branch" -ForegroundColor Cyan
+}
+
 # Function to restart the script with admin rights
 function Restart-ScriptWithAdmin {
     if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
         $RestartBranch = if ($Branch) { $Branch } else { "master" }
-        
-        # Build parameter string
-        $scriptParams = @()
-        if ($NoCheckpoint) { $scriptParams += "-NoCheckpoint" }
-        if ($DeepClean) { $scriptParams += "-DeepClean" }
-        if ($AutoUpdate) { $scriptParams += "-AutoUpdate" }
-        if ($Branch) { $scriptParams += "-Branch"; $scriptParams += $Branch }
-        
-        # Simple approach: download script, create scriptblock, execute with parameters
-        $cmd = "`$script = irm 'https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$RestartBranch/Install_Run-in-Sandbox.ps1'; & ([scriptblock]::Create(`$script)) $($scriptParams -join ' ')"
-        
-        Start-Process powershell.exe -ArgumentList "-NoProfile","-ExecutionPolicy","Bypass","-NoExit","-Command",$cmd -Verb RunAs
-        exit
+
+        Write-Host ""
+        Write-Host "=== Elevation Required ===" -ForegroundColor Yellow
+        Write-Host "[DEBUG] Detected branch: $RestartBranch" -ForegroundColor Cyan
+
+        # Download the installer script for the selected branch into a temporary file
+        $TempScript = [System.IO.Path]::Combine([System.IO.Path]::GetTempPath(), "Install_Run-in-Sandbox_Restart.ps1")
+        try {
+            # Build a tiny wrapper that downloads and executes the installer at elevation, avoiding truncated/cached files
+            $InstallerUrl    = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$RestartBranch/Install_Run-in-Sandbox.ps1?_ts=$([DateTime]::UtcNow.Ticks)"
+            $NoCheckpointVal = if ($NoCheckpoint) { '$true' } else { '$false' }
+            $DeepCleanVal    = if ($DeepClean)    { '$true' } else { '$false' }
+            $AutoUpdateVal   = if ($AutoUpdate)   { '$true' } else { '$false' }
+
+            $Wrapper = @"
+`$ErrorActionPreference = 'Stop'
+`$u = '$InstallerUrl'
+`$h = @{ 'User-Agent'='Run-in-Sandbox-Installer/1.0 (+https://github.com/Joly0/Run-in-Sandbox)'; 'Accept'='text/plain' }
+`$code = `$null
+try { `$code = Invoke-RestMethod -Uri `$u -Headers `$h -UseBasicParsing -TimeoutSec 30 } catch { `$code = `$null }
+if (-not `$code -or `$code.TrimStart().StartsWith('<')) {
+    `$tmp = [System.IO.Path]::GetTempFileName()
+    Invoke-WebRequest -Uri `$u -Headers `$h -UseBasicParsing -OutFile `$tmp -TimeoutSec 30 -ErrorAction Stop
+    `$code = Get-Content -Path `$tmp -Raw
+    Remove-Item -Path `$tmp -Force -ErrorAction SilentlyContinue
+}
+if (-not `$code) { throw 'Failed to download installer content' }
+`$sb = [ScriptBlock]::Create(`$code)
+& `$sb -NoCheckpoint:$NoCheckpointVal -DeepClean:$DeepCleanVal -AutoUpdate:$AutoUpdateVal -Branch '$RestartBranch'
+"@
+
+            Set-Content -Path $TempScript -Value $Wrapper -Encoding UTF8
+            Write-Host "[DEBUG] Wrote elevated wrapper to: $TempScript" -ForegroundColor Cyan
+
+            # Parse wrapper to ensure validity before elevation
+            $null = $tokens = $null; $null = $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile($TempScript, [ref]$tokens, [ref]$errors) | Out-Null
+            if ($errors -and $errors.Count -gt 0) {
+                Write-Host "[ERROR] Elevated wrapper parse errors:" -ForegroundColor Red
+                $errors | ForEach-Object { Write-Host ("  " + $_) -ForegroundColor Red }
+                Read-Host "Press Enter to exit"
+                break script
+            }
+        } catch {
+            Write-Host "[ERROR] Failed to prepare elevated wrapper: $($_.Exception.Message)" -ForegroundColor Red
+            Read-Host "Press Enter to exit"
+            break script
+        }
+
+        # Build the argument list preserving any flags/branch override
+        $ArgumentList = @(
+            "-NoExit",
+            "-ExecutionPolicy", "Bypass",
+            "-File", $TempScript
+        )
+
+        # Flags are passed inside the EncodedCommand wrapper; do not append any script parameters here.
+
+        Write-Host "[DEBUG] Argument list to elevated PowerShell:" -ForegroundColor Cyan
+        $ArgumentList | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkCyan }
+
+        Write-Host "[DEBUG] Command preview:" -ForegroundColor Cyan
+        Write-Host ("    powershell.exe " + ($ArgumentList | ForEach-Object { if ($_ -match '\s') { "`"$_`"" } else { $_ } }) -join ' ') -ForegroundColor DarkCyan
+
+        if (-not (Test-Path $TempScript)) {
+            Write-Host "[ERROR] Temporary script was not created. Aborting elevation." -ForegroundColor Red
+            Read-Host "Press Enter to exit"
+            break script
+        }
+
+        Write-Host ""
+        Read-Host "Press Enter to continue with elevation"
+
+        Start-Process powershell.exe -ArgumentList $ArgumentList -Verb RunAs
+        Write-Host "[DEBUG] Elevation request sent." -ForegroundColor Cyan
+        Write-Host ""
+
+        break script
     }
 }
 
 # Restart the script with admin rights if not already running as admin
 Restart-ScriptWithAdmin
 
-# Define paths
-$Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
-$IsInstalled = Test-Path $Run_in_Sandbox_Folder
-$BackupCreated = $false
-
-# Determine branch to use
-if (-not $Branch) {
-    # Detect from existing installation
-    if ($IsInstalled) {
-        $VersionJson = "$Run_in_Sandbox_Folder\version.json"
-        if (Test-Path $VersionJson) {
-            $VersionData = Get-Content $VersionJson -Raw | ConvertFrom-Json
-            $Branch = if ($VersionData.branch) { $VersionData.branch } else { "master" }
-        } else {
-            $Branch = "master"
-        }
+# Load latest CommonFunctions once at top-level (online preferred, fallback to local)
+try {
+    $cf = Invoke-RestMethod -Uri "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$Branch/CommonFunctions.ps1" -UseBasicParsing
+    . ([ScriptBlock]::Create($cf))
+    if (-not $AutoUpdate) { Write-Host "[DEBUG] CommonFunctions loaded from GitHub ($Branch)" -ForegroundColor Green }
+} catch {
+    if (Test-Path "$Run_in_Sandbox_Folder\CommonFunctions.ps1") {
+        . "$Run_in_Sandbox_Folder\CommonFunctions.ps1"
+        if (-not $AutoUpdate) { Write-Host "[WARNING] Using local CommonFunctions fallback" -ForegroundColor Yellow }
     } else {
-        $Branch = "master"
+        throw "CommonFunctions.ps1 could not be loaded"
     }
 }
+if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+    break script
+}
+
+
+# At this point $Run_in_Sandbox_Folder, $IsInstalled, and $Branch are already resolved
+$BackupCreated = $false
 
 # Check if already installed and show version info
 if ($IsInstalled) {
@@ -74,8 +228,14 @@ if ($IsInstalled) {
     $LatestVersion = $null
     if (-not $AutoUpdate) {
         $LatestUrl = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$Branch/version.json"
-        $LatestData = Invoke-RestMethod -Uri $LatestUrl -UseBasicParsing | ConvertFrom-Json
-        $LatestVersion = $LatestData.version
+        try {
+            # Invoke-RestMethod already parses JSON; do not pipe to ConvertFrom-Json
+            $LatestData = Invoke-RestMethod -Uri $LatestUrl -UseBasicParsing -TimeoutSec 10
+            $LatestVersion = $LatestData.version
+        } catch {
+            Write-Host "[DEBUG] Failed to retrieve latest version from ${LatestUrl}: $($_.Exception.Message)" -ForegroundColor Yellow
+            $LatestVersion = $null
+        }
     }
     
     # Display version info
@@ -102,7 +262,7 @@ if ($IsInstalled) {
                 if ($Response -ne 'Y' -and $Response -ne 'y') {
                     Write-Host "Installation cancelled." -ForegroundColor Yellow
                     Read-Host "Press Enter to exit"
-                    exit
+                    break script
                 }
             }
         }
@@ -147,7 +307,7 @@ if ($IsInstalled) {
             if ($Response -ne 'Y' -and $Response -ne 'y') {
                 Write-Host "Update cancelled." -ForegroundColor Yellow
                 Read-Host "Press Enter to exit"
-                exit 1
+                break script
             }
         }
     }
@@ -157,12 +317,6 @@ if ($IsInstalled) {
         Write-Host ""
         Write-Host "Performing deep-clean..." -ForegroundColor Yellow
         
-        # Load CommonFunctions if not already loaded
-        if (-not (Get-Command Find-RegistryIconPaths -ErrorAction SilentlyContinue)) {
-            if (Test-Path "$Run_in_Sandbox_Folder\CommonFunctions.ps1") {
-                . "$Run_in_Sandbox_Folder\CommonFunctions.ps1"
-            }
-        }
         
         if (Get-Command Find-RegistryIconPaths -ErrorAction SilentlyContinue) {
             [String[]] $results = @()
@@ -170,10 +324,10 @@ if ($IsInstalled) {
             $results += Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT\SystemFileAssociations'
             
             $Current_User_SID = (Get-ChildItem -Path Registry::\HKEY_USERS | Where-Object { Test-Path -Path "$($_.pspath)\Volatile Environment" } | ForEach-Object { (Get-ItemProperty -Path "$($_.pspath)\Volatile Environment") }).PSParentPath.split("\")[-1]
-            $HKCU_Classes = "Registry::HKEY_USERS\$Current_User_SID" + "_Classes"
+            $HKCU_Classes = "HKEY_USERS\$Current_User_SID" + "_Classes"
             
             $results += Find-RegistryIconPaths -rootRegistryPath $HKCU_Classes
-            $results = $results | Where-Object { $_ -notlike "REGISTRY::HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
+            $results = $results | Where-Object { $_ -notlike "HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
             $results = $results | Select-Object -Unique | Sort-Object
             
             foreach ($reg_path in $results) {
@@ -218,7 +372,7 @@ if (Test-Path $extractPath) {
             Write-Host "Attempting rollback..." -ForegroundColor Yellow
             # Rollback logic here if needed
         }
-        exit 1
+        break script
     }
 }
 
@@ -234,7 +388,7 @@ try {
     if ($BackupCreated) {
         Write-Host "Backup available at: $Run_in_Sandbox_Folder\backup" -ForegroundColor Yellow
     }
-    exit 1
+    break script
 }
 
 # Extract the zip file
@@ -246,7 +400,7 @@ try {
     Write-Host "Extraction completed."
 } catch {
     Write-Error "Failed to extract the zip file: $_"
-    exit 1
+    break script
 }
 
 # Remove the zip file
@@ -256,7 +410,7 @@ try {
     Write-Host "Zip file removed."
 } catch {
     Write-Error "Failed to remove the zip file: $_"
-    exit 1
+    break script
 }
 
 # Backup config before installation (for merge)
@@ -267,7 +421,7 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 }
 
 # Construct the path to the add_structure.ps1 script
-$addStructureScript = Join-Path -Path $extractPath -ChildPath "Run-in-Sandbox-$Branch\Add_Structure.ps1"
+$addStructureScript = Join-Path -Path $extractPath -ChildPath "Add_Structure.ps1"
 
 # Set Execution Policy and unblock files
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Unrestricted
@@ -290,8 +444,34 @@ try {
     # Merge config if it was an update
     if ($ConfigBackup -and (Test-Path $ConfigBackup)) {
         Write-Host "Merging configuration..." -ForegroundColor Cyan
-        . "$Run_in_Sandbox_Folder\CommonFunctions.ps1"
-        Merge-SandboxConfig -OldConfigPath $ConfigBackup -NewConfigPath "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
+        try {
+            Merge-SandboxConfig -OldConfigPath $ConfigBackup -NewConfigPath "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
+        } catch {
+            # Simple fallback: copy matching element values without XPath
+            Write-Host "[WARNING] Merge-SandboxConfig failed, applying simple merge" -ForegroundColor Yellow
+            try {
+                [xml]$OldCfg = Get-Content $ConfigBackup
+                [xml]$NewCfg = Get-Content "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
+                if ($OldCfg.Configuration -and $NewCfg.Configuration) {
+                    foreach ($child in $OldCfg.Configuration.ChildNodes) {
+                        if ($child.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
+                        $target = $null
+                        foreach ($n in $NewCfg.Configuration.ChildNodes) {
+                            if ($n.NodeType -eq [System.Xml.XmlNodeType]::Element -and $n.Name -eq $child.Name) {
+                                $target = $n
+                                break
+                            }
+                        }
+                        if ($target) {
+                            $target.InnerText = $child.InnerText
+                        }
+                    }
+                    $NewCfg.Save("$Run_in_Sandbox_Folder\Sandbox_Config.xml") | Out-Null
+                }
+            } catch {
+                Write-Host "[ERROR] Simple merge failed: $($_.Exception.Message)" -ForegroundColor Red
+            }
+        }
         Remove-Item $ConfigBackup -Force
     }
     
@@ -316,7 +496,7 @@ try {
         if ($BackupCreated) {
             Write-Host "Backup available at: $Run_in_Sandbox_Folder\backup" -ForegroundColor Yellow
         }
-        exit 1
+        break script
     }
     
     # Clean up temp files
@@ -346,7 +526,7 @@ try {
         Write-Host "Backup available at: $Run_in_Sandbox_Folder\backup" -ForegroundColor Yellow
         Write-Host "To restore, copy contents from backup folder back to $Run_in_Sandbox_Folder" -ForegroundColor Yellow
     }
-    exit 1
+    break script
 }
 
 Write-Host ""
