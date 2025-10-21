@@ -599,7 +599,7 @@ function Get-ChangelogForVersion {
         for ($i = 0; $i -lt $Lines.Count; $i++) {
             if ($Lines[$i] -match "^##\s+$Version") { $StartIndex = $i; break }
         }
-        if ($StartIndex -eq -1) { return "Visit https://github.com/Joly0/Run-in-Sandbox/blob/master/CHANGELOG.md" }
+        if ($StartIndex -eq -1) { return "Visit https://github.com/Joly0/Run-in-Sandbox/blob/$Branch/CHANGELOG.md" }
         
         $ChangelogSection = @()
         for ($i = $StartIndex; $i -lt $Lines.Count; $i++) {
@@ -608,7 +608,7 @@ function Get-ChangelogForVersion {
         }
         return ($ChangelogSection -join "`n").Trim()
     } catch {
-        return "Visit https://github.com/Joly0/Run-in-Sandbox/blob/master/CHANGELOG.md"
+        return "Visit https://github.com/Joly0/Run-in-Sandbox/blob/$Branch/CHANGELOG.md"
     }
 }
 
@@ -747,64 +747,6 @@ function Get-UpdateDecision {
     return $null
 }
 
-# Validate installation after update
-function Test-UpdateSuccess {
-    $RequiredFiles = @(
-        "$Run_in_Sandbox_Folder\Sources\Run_in_Sandbox\RunInSandbox.ps1",
-        "$Run_in_Sandbox_Folder\CommonFunctions.ps1",
-        "$Run_in_Sandbox_Folder\Sandbox_Config.xml",
-        "$Run_in_Sandbox_Folder\version.txt"
-    )
-    foreach ($File in $RequiredFiles) { if (-not (Test-Path $File)) { return $false } }
-    
-    try {
-        $Version = (Get-Content "$Run_in_Sandbox_Folder\version.txt" -Raw).Trim()
-        if ($Version -notmatch '^\d{4}-\d{2}-\d{2}$') { return $false }
-        [DateTime]::ParseExact($Version, 'yyyy-MM-dd', $null) | Out-Null
-    } catch { return $false }
-    return $true
-}
-
-# Create backup before update
-function New-UpdateBackup {
-    param([string]$TargetVersion)
-    $BackupFolder = "$Run_in_Sandbox_Folder\backup"
-    if (Test-Path $BackupFolder) { Remove-Item -Path $BackupFolder -Recurse -Force }
-    New-Item -ItemType Directory -Path $BackupFolder -Force | Out-Null
-    
-    try {
-        Get-ChildItem -Path $Run_in_Sandbox_Folder | Where-Object { $_.Name -notin @("temp", "backup", "logs") } | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination (Join-Path $BackupFolder $_.Name) -Recurse -Force
-        }
-        Write-LogMessage -Message_Type "SUCCESS" -Message "[UPDATE] Backup created"
-        return $true
-    } catch {
-        Write-LogMessage -Message_Type "ERROR" -Message "[UPDATE] Backup failed"
-        return $false
-    }
-}
-
-# Rollback to backup if update fails
-function Invoke-UpdateRollback {
-    param([string]$Reason)
-    $BackupFolder = "$Run_in_Sandbox_Folder\backup"
-    if (-not (Test-Path $BackupFolder)) { return $false }
-    
-    try {
-        Write-LogMessage -Message_Type "WARNING" -Message "[UPDATE] Rolling back: $Reason"
-        Get-ChildItem -Path $Run_in_Sandbox_Folder | Where-Object { $_.Name -notin @("temp", "backup", "logs") } | ForEach-Object {
-            Remove-Item -Path $_.FullName -Recurse -Force
-        }
-        Get-ChildItem -Path $BackupFolder | ForEach-Object {
-            Copy-Item -Path $_.FullName -Destination (Join-Path $Run_in_Sandbox_Folder $_.Name) -Recurse -Force
-        }
-        Write-LogMessage -Message_Type "SUCCESS" -Message "[UPDATE] Rollback completed"
-        return $true
-    } catch {
-        Write-LogMessage -Message_Type "ERROR" -Message "[UPDATE] Rollback failed"
-        return $false
-    }
-}
 
 # Merge user settings from old config into new config
 function Merge-SandboxConfig {
@@ -819,79 +761,4 @@ function Merge-SandboxConfig {
         if ($NewSetting) { $NewSetting.InnerText = $Child.InnerText }
     }
     $NewConfig.Save($NewConfigPath)
-}
-
-# Main update installation function
-function Invoke-UpdateInstallation {
-    param([string]$LatestVersion)
-    Write-LogMessage -Message_Type "INFO" -Message "[UPDATE] Starting installation to $LatestVersion"
-    
-    # Check sandbox isn't running
-    if ($null -ne (Get-Process -Name "WindowsSandbox" -ErrorAction SilentlyContinue)) {
-        Write-LogMessage -Message_Type "ERROR" -Message "[UPDATE] Sandbox still running"
-        return $false
-    }
-    
-    # Create backup
-    if (-not (New-UpdateBackup -TargetVersion $LatestVersion)) { return $false }
-    
-    # Download update
-    $ZipPath = "$env:TEMP\Run-in-Sandbox-master.zip"
-    $ExtractPath = "$env:TEMP\Run-in-Sandbox-master"
-    
-    try {
-        Write-LogMessage -Message_Type "INFO" -Message "[UPDATE] Downloading update..."
-        Invoke-WebRequest -Uri "https://github.com/Joly0/Run-in-Sandbox/archive/refs/heads/master.zip" -OutFile $ZipPath -UseBasicParsing
-        if (-not (Test-Path $ZipPath) -or (Get-Item $ZipPath).Length -lt 1MB) { throw "Download failed" }
-        if (Test-Path $ExtractPath) { Remove-Item $ExtractPath -Recurse -Force }
-        Expand-Archive -Path $ZipPath -DestinationPath $env:TEMP -Force
-    } catch {
-        Write-LogMessage -Message_Type "ERROR" -Message "[UPDATE] Download failed"
-        Invoke-UpdateRollback -Reason "Download failed"
-        return $false
-    }
-    
-    # Backup and merge config
-    $ConfigBackup = "$env:TEMP\Sandbox_Config_Backup.xml"
-    Copy-Item "$Run_in_Sandbox_Folder\Sandbox_Config.xml" $ConfigBackup -Force
-    
-    try {
-        Write-LogMessage -Message_Type "INFO" -Message "[UPDATE] Installing files..."
-        $SourcePath = "$ExtractPath\Run-in-Sandbox-master"
-        Get-ChildItem -Path $SourcePath -Recurse | ForEach-Object {
-            $TargetPath = $_.FullName.Replace($SourcePath, $Run_in_Sandbox_Folder)
-            if ($_.PSIsContainer) {
-                if (-not (Test-Path $TargetPath)) { New-Item -ItemType Directory -Path $TargetPath -Force | Out-Null }
-            } else {
-                if ($TargetPath -notmatch '\\(temp|backup)\\') { Copy-Item $_.FullName $TargetPath -Force }
-            }
-        }
-        
-        Merge-SandboxConfig -OldConfigPath $ConfigBackup -NewConfigPath "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
-        Set-Content -Path "$Run_in_Sandbox_Folder\version.txt" -Value $LatestVersion
-    } catch {
-        Write-LogMessage -Message_Type "ERROR" -Message "[UPDATE] Installation failed"
-        Invoke-UpdateRollback -Reason "Installation failed"
-        return $false
-    }
-    
-    # Validate installation
-    if (-not (Test-UpdateSuccess)) {
-        Invoke-UpdateRollback -Reason "Validation failed"
-        return $false
-    }
-    
-    # Cleanup
-    Remove-Item $ZipPath -Force -ErrorAction SilentlyContinue
-    Remove-Item $ExtractPath -Recurse -Force -ErrorAction SilentlyContinue
-    Remove-Item $ConfigBackup -Force -ErrorAction SilentlyContinue
-    
-    # Clear update state and dismiss files
-    $StateFile = "$Run_in_Sandbox_Folder\temp\UpdateState.json"
-    if (Test-Path $StateFile) { Remove-Item $StateFile -Force }
-    $DismissFile = "$Run_in_Sandbox_Folder\temp\DismissedUntil.txt"
-    if (Test-Path $DismissFile) { Remove-Item $DismissFile -Force }
-    
-    Write-LogMessage -Message_Type "SUCCESS" -Message "[UPDATE] Update completed to $LatestVersion"
-    return $true
 }

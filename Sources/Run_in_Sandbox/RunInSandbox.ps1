@@ -664,5 +664,29 @@ if ($WSB_Cleanup -eq $True) {
 $UpdateDecision = Get-UpdateDecision
 if ($UpdateDecision -and $UpdateDecision.action -eq "update") {
     Write-Host "Installing update to version $($UpdateDecision.latestVersion)..." -ForegroundColor Green
-    Invoke-UpdateInstallation -LatestVersion $UpdateDecision.latestVersion
+    Write-Host "Starting update process in new window..." -ForegroundColor Cyan
+    
+    # Download and execute Install_Run-in-Sandbox.ps1 as a separate process
+    try {
+        $VersionInfo = Get-VersionInfo
+        $Branch = $VersionInfo.CurrentBranch
+        $InstallScriptUrl = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$Branch/Install_Run-in-Sandbox.ps1"
+        
+        # Download to temp file
+        $TempInstaller = "$env:TEMP\Run-in-Sandbox-Updater.ps1"
+        Invoke-WebRequest -Uri $InstallScriptUrl -OutFile $TempInstaller -UseBasicParsing
+        
+        # Launch installer in new elevated process (don't wait)
+        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -File `"$TempInstaller`" -AutoUpdate -NoCheckpoint" -Verb RunAs
+        
+        Write-Host "Update process started. This window will now close." -ForegroundColor Green
+        Write-Host "The update will complete in the new window." -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        
+        # Exit immediately to release file locks
+        exit 0
+    } catch {
+        Write-Host "Failed to start update process: $_" -ForegroundColor Red
+        Write-Host "You can manually update by running: powershell -c `"irm https://run-in-sandbox.com/install.ps1 | iex`"" -ForegroundColor Yellow
+    }
 }

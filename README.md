@@ -30,7 +30,15 @@ All the steps need to be executed from the Host, not inside the Sandbox
 ### <mark>__Method 1 - PowerShell (Recommended)__</mark>
 -   Right-click on the Windows start menu and select PowerShell or Terminal (Not CMD), preferably as admin.
 -   Copy and paste the code below and press enter:
+
+#### **Install from master branch (stable):**
 ##### __`irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1 | iex`__
+
+#### **Install from a specific branch (e.g., dev):**
+##### __`iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/dev/Install_Run-in-Sandbox.ps1) -Branch dev }"`__
+
+Replace both `dev` instances with your desired branch name (e.g., `beta`, `test`, etc.)
+
 -   You will see the process being started. You will probably be asked to grant admin rights if not started as admin.
 -   That's all.
 
