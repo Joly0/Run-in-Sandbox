@@ -39,6 +39,7 @@ if (Update-7ZipCache) {
     Write-LogMessage -Message_Type "SUCCESS" -Message "7-Zip installer cached successfully"
 } else {
     Write-LogMessage -Message_Type "WARNING" -Message "Failed to cache 7-Zip installer - will retry on first use"
+}
 
 # Create version.json file with current version and branch
 Write-LogMessage -Message_Type "INFO" -Message "Creating version file"
@@ -48,7 +49,7 @@ $VersionFile = "$Run_in_Sandbox_Folder\version.json"
     branch = "master"
 } | ConvertTo-Json | Set-Content -Path $VersionFile
 Write-LogMessage -Message_Type "SUCCESS" -Message "Version file created"
-}
+
 
 if ($NoSilent) {
     powershell -NoProfile $Current_Folder\Sources\Run_in_Sandbox\RunInSandbox_Config.ps1

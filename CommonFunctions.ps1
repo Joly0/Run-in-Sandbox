@@ -410,7 +410,7 @@ function Test-ForSources {
     Write-LogMessage -Message_Type "SUCCESS" -Message "The sources folder exists"
     
     $Check_Sources_Files_Count = (Get-ChildItem -Path "$Current_Folder\Sources\Run_in_Sandbox" -Recurse).count
-    if ($Check_Sources_Files_Count -lt 25) {  # Reduced from 40 to 26 (removed 14 bundled 7zip files)
+    if ($Check_Sources_Files_Count -lt 25) {
         Write-LogMessage -Message_Type "ERROR" -Message "Some contents are missing"
         [System.Windows.Forms.MessageBox]::Show("It seems you haven´t downloaded all the folder structure !!!")
         EXIT
