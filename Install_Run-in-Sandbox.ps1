@@ -283,13 +283,6 @@ function Backup-CustomStartupScripts {
         [string]$RunFolder,
         [string[]]$DefaultNames
     )
-    $script:customScriptsBackupDir = Join-Path $env:TEMP "RIS_CustomStartupScripts"
-    try {
-        if (Test-Path $script:customScriptsBackupDir) {
-            Remove-Item $script:customScriptsBackupDir -Recurse -Force -ErrorAction SilentlyContinue
-        }
-    } catch {}
-    New-Item -ItemType Directory -Force -Path $script:customScriptsBackupDir | Out-Null
 
     $installedStartupDir = Join-Path $RunFolder "\startup-scripts"
     if (Test-Path $installedStartupDir) {
@@ -344,13 +337,14 @@ function Sync-CoreFiles {
         "CommonFunctions.ps1",
         "version.json"
     )
+    
     foreach ($fileName in $rootFiles) {
         $sourceFile = Join-Path $ExtractPath $fileName
         if (Test-Path $sourceFile) {
             Copy-Item $sourceFile (Join-Path $RunFolder $fileName) -Force
         }
     }
-
+    
     # Copy Sources except startup-scripts (handled separately below)
     $sourceSandboxDir = Join-Path $ExtractPath "Sources\Run_in_Sandbox"
     # After installation, files are directly in $RunFolder, not in a subfolder
@@ -364,14 +358,14 @@ function Sync-CoreFiles {
                 Copy-Item $_.FullName $destPath -Force
             }
         }
-
+        
         # Handle Sandbox_Config.xml - only copy if it doesn't exist in destination (preserve user changes)
         $sourceConfig = Join-Path $sourceSandboxDir "Sandbox_Config.xml"
         $destConfig = Join-Path $destSandboxDir "Sandbox_Config.xml"
-        if (Test-Path $sourceConfig -and -not (Test-Path $destConfig)) {
+        if ((Test-Path $sourceConfig) -and (-not (Test-Path $destConfig))) {
             Copy-Item $sourceConfig $destConfig -Force
         }
-
+        
         # Update startup scripts - merge default scripts while preserving user-added ones
         $defaultStartupDir = Join-Path $sourceSandboxDir "startup-scripts"
         if (Test-Path $defaultStartupDir) {
@@ -574,15 +568,18 @@ if (-not $AutoUpdate -and $IsInstalled) {
 $BackupCreated = $false
 if ($IsInstalled) {
     $CurrentVersion = Get-CurrentVersionSimple
-    $LatestVersion  = if (-not $AutoUpdate) { Get-LatestVersionFromBranch -EffectiveBranch $Branch } else { $null }
+    $LatestVersion  = Get-LatestVersionFromBranch -EffectiveBranch $Branch
     $InstalledBranch = Get-InstalledBranch
 
     if (-not $AutoUpdate -and $CurrentVersion) {
-        Write-Info ("Current Version:  {0}" -f $CurrentVersion) ([ConsoleColor]::Green)
+        Write-Info ("Current Version:   {0}" -f $CurrentVersion) ([ConsoleColor]::Green)
         $branchToShow = if ($InstalledBranch) { $InstalledBranch } else { $Branch }
-        Write-Info ("Current Branch:   {0}" -f $branchToShow) ([ConsoleColor]::Cyan)
+        Write-Info ("Current Branch:    {0}" -f $branchToShow) ([ConsoleColor]::Cyan)
         if ($LatestVersion) {
-            Write-Info ("Latest Version:   {0}" -f $LatestVersion) ([ConsoleColor]::Green)
+            Write-Info ("Latest Version:    {0}" -f $LatestVersion) ([ConsoleColor]::Green)
+        }
+        if ($LatestVersion -and $Branch) {
+            Write-Info ("Requested Branch:  {0}" -f $Branch) ([ConsoleColor]::Green)
         }
         Write-Host ""
 
@@ -656,13 +653,18 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 
 try {
     Run-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled
-    Write-Host "Running Merge-ConfigIfNeeded with parameters $IsInstalled and $Run_in_Sandbox_Folder"
     Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder
-    Write-Host "Running Sync-CoreFiles with parameters $Run_in_Sandbox_Folder and $DefaultStartupNames"
-    Sync-CoreFiles -ExtractPath $extractPath -RunFolder $Run_in_Sandbox_Folder -DefaultNames $DefaultStartupNames
-    Write-Host "Running Restore-CustomStartupScripts with parameters $Run_in_Sandbox_Folder"
-    Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
-    Write-Host "Running Ensure-VersionJson with parameters $Run_in_Sandbox_Folder and $extractPath and $Branch and $LatestVersion"
+    
+    # Only sync files for updates, not for new installations
+    if ($IsInstalled) {
+        $syncParams = @{
+            ExtractPath = $extractPath
+            RunFolder = $Run_in_Sandbox_Folder
+            DefaultNames = $DefaultStartupNames
+        }
+        Sync-CoreFiles @syncParams
+        Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
+    }
     Ensure-VersionJson -RunFolder $Run_in_Sandbox_Folder -ExtractPath $extractPath -EffectiveBranch $Branch -LatestVersion $LatestVersion
 
     $valid = Validate-Installation -RunFolder $Run_in_Sandbox_Folder

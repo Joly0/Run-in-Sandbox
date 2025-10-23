@@ -619,7 +619,7 @@ function Show-UpdateToast {
     [Windows.UI.Notifications.ToastNotificationManager, Windows.UI.Notifications, ContentType = WindowsRuntime] | Out-Null
     [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
     
-    $IconPath = "$Run_in_Sandbox_Folder\Sources\Run_in_Sandbox\sandbox.ico"
+    $IconPath = "$Run_in_Sandbox_Folder\sandbox.ico"
     $ToastXml = @"
 <toast activationType="protocol" launch="run-in-sandbox-update:$LatestVersion">
     <visual><binding template="ToastGeneric">
@@ -669,7 +669,7 @@ function Show-ChangelogDialog {
     Add-Type -AssemblyName PresentationFramework
     
     # Load XAML from file and replace placeholders
-    $XamlPath = "$Run_in_Sandbox_Folder\Sources\Run_in_Sandbox\RunInSandbox_UpdateDialog.xaml"
+    $XamlPath = "$Run_in_Sandbox_Folder\RunInSandbox_UpdateDialog.xaml"
     $Xaml = Get-Content $XamlPath -Raw
     $Xaml = $Xaml -replace 'PLACEHOLDER_TITLE', ($Strings.DialogTitle -f $LatestVersion)
     $Xaml = $Xaml -replace 'PLACEHOLDER_CURRENT_LABEL', "$($Strings.CurrentVersionLabel): "
@@ -711,11 +711,11 @@ function Show-ChangelogDialog {
 # Load localized strings for update UI
 function Get-LocalizedUpdateStrings {
     param([string]$Language = "en-US")
-    $LanguageFile = "$Run_in_Sandbox_Folder\Sources\Run_in_Sandbox\Languages_XML\Language_$Language.xml"
+    $LanguageFile = "$Run_in_Sandbox_Folder\Languages_XML\Language_$Language.xml"
     
     # Fallback to en-US if language file not found
     if (-not (Test-Path $LanguageFile)) {
-        $LanguageFile = "$Run_in_Sandbox_Folder\Sources\Run_in_Sandbox\Languages_XML\Language_en-US.xml"
+        $LanguageFile = "$Run_in_Sandbox_Folder\Languages_XML\Language_en-US.xml"
     }
     
     $LangXml = [xml](Get-Content $LanguageFile)
