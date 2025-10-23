@@ -271,7 +271,7 @@ function Download-And-Extract {
 }
 function Get-DefaultStartupScriptNames {
     param([string]$ExtractPath)
-    $defaultStartupDir = Join-Path $ExtractPath "\startup-scripts"
+    $defaultStartupDir = Join-Path $ExtractPath "Sources\Run_in_Sandbox\startup-scripts"
     if (Test-Path $defaultStartupDir) {
         return (Get-ChildItem -Path $defaultStartupDir -File | Select-Object -ExpandProperty Name)
     }
