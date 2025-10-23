@@ -676,6 +676,46 @@ try {
         break script
     }
 
+    # Set permissions to make the folder writable by everyone
+    try {
+        Write-Info "Setting folder permissions..." ([ConsoleColor]::Cyan)
+        $acl = Get-Acl $Run_in_Sandbox_Folder
+        
+        # Try multiple approaches for different Windows versions
+        $identity = $null
+        try {
+            # First try using well-known SID for Users
+            $identity = [System.Security.Principal.SecurityIdentifier]("S-1-5-32-545")
+        } catch {
+            try {
+                # Fallback to built-in users group
+                $identity = [System.Security.Principal.NTAccount]("BUILTIN\Users")
+            } catch {
+                try {
+                    # Last resort - try Everyone
+                    $identity = [System.Security.Principal.NTAccount]("Everyone")
+                } catch {
+                    Write-Info "Warning: Could not create identity for permissions." ([ConsoleColor]::Yellow)
+                }
+            }
+        }
+        
+        if ($identity) {
+            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $identity,
+                "FullControl",
+                "ContainerInherit,ObjectInherit",
+                "None",
+                "Allow"
+            )
+            $acl.SetAccessRule($accessRule)
+            Set-Acl $Run_in_Sandbox_Folder $acl
+            Write-Info "Folder permissions set successfully." ([ConsoleColor]::Green)
+        }
+    } catch {
+        Write-Info "Warning: Failed to set folder permissions: $($_.Exception.Message)" ([ConsoleColor]::Yellow)
+    }
+
     Cleanup-Temp -ExtractPath $extractPath -RunFolder $Run_in_Sandbox_Folder
 
     if ($IsInstalled) {

@@ -35,7 +35,7 @@ All the steps need to be executed from the Host, not inside the Sandbox
 ##### __`irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1 | iex`__
 
 #### **Install from a specific branch (e.g., dev):**
-##### __`iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/dev/Install_Run-in-Sandbox.ps1) -Branch dev }"`__
+##### __`iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/dev/Install_Run-in-Sandbox.ps1) } -Branch dev"`__
 
 Replace both `dev` instances with your desired branch name (e.g., `beta`, `test`, etc.)
 

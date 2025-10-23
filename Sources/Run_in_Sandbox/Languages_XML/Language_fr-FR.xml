@@ -20,6 +20,7 @@
 	<DialogFooter>Note: La mise à jour sera installée automatiquement après avoir fermé le sandbox. Vos paramètres seront préservés.</DialogFooter>
 	<UpdateButton>Mettre à jour maintenant</UpdateButton>
 	<DismissButton>Ignorer pour aujourd'hui</DismissButton>
+	<ViewChangesButton>Voir les modifications</ViewChangesButton>
 	<UpdateScheduledMessage>La mise à jour sera installée après la fermeture du sandbox.</UpdateScheduledMessage>
 	<UpdateSuccessTitle>Mise à jour terminée</UpdateSuccessTitle>
 	<UpdateSuccessMessage>Run-in-Sandbox a été mis à jour vers la version {0}</UpdateSuccessMessage>

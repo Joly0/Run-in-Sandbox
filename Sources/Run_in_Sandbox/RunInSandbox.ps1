@@ -651,13 +651,22 @@ do {
 } while (Get-Process -Name "WindowsSandboxServer" -ErrorAction SilentlyContinue)
 
 if ($WSB_Cleanup -eq $True) {
-    Remove-Item -LiteralPath $Sandbox_File_Path -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $Intunewin_Command_File -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $Intunewin_Content_File -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath $EXE_Command_File -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp" -Force -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath "$Run_in_Sandbox_Folder\NotepadPayload" -Force -Recurse -ErrorAction SilentlyContinue
-    Remove-Item -LiteralPath "$Run_in_Sandbox_Folder\startup-scripts\OriginalCommand.txt" -Force -ErrorAction SilentlyContinue
+    function Remove-Leftovers {
+        param(
+            [Parameter(Mandatory=$true)]
+            [string]$RemovalPath = ""
+        )
+        if (Test-Path $RemovalPath) {
+            Remove-Item -LiteralPath $RemovalPath -Force -Recurse -ErrorAction SilentlyContinue
+        }
+    }
+    Remove-Leftovers -RemovalPath $Sandbox_File_Path
+    Remove-Leftovers -RemovalPath $Intunewin_Command_File
+    Remove-Leftovers -RemovalPath $Intunewin_Content_File
+    Remove-Leftovers -RemovalPath $EXE_Command_File
+    Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp"
+    Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\NotepadPayload"
+    Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\startup-scripts\OriginalCommand.txt"
 }
 
 # Check for pending update installation (runs regardless of cleanup setting)

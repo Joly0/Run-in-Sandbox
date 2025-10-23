@@ -20,6 +20,7 @@
 		<DialogFooter>Hinweis: Das Update wird automatisch installiert, nachdem Sie die Sandbox geschlossen haben. Ihre Einstellungen bleiben erhalten.</DialogFooter>
 		<UpdateButton>Jetzt aktualisieren</UpdateButton>
 		<DismissButton>Für heute ablehnen</DismissButton>
+		<ViewChangesButton>Änderungen anzeigen</ViewChangesButton>
 		<UpdateScheduledMessage>Das Update wird nach dem Schließen der Sandbox installiert.</UpdateScheduledMessage>
 		<UpdateSuccessTitle>Update abgeschlossen</UpdateSuccessTitle>
 		<UpdateSuccessMessage>Run-in-Sandbox wurde auf Version {0} aktualisiert</UpdateSuccessMessage>

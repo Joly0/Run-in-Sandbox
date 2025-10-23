@@ -4,9 +4,15 @@ $Log_File = "$TEMP_Folder\RunInSandbox_Install.log"
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $XML_Config = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
 $Windows_Version = (Get-CimInstance -class Win32_OperatingSystem).Caption
-$Current_User_SID = (Get-ChildItem -Path Registry::\HKEY_USERS | Where-Object { Test-Path -Path "$($_.pspath)\Volatile Environment" } | ForEach-Object { (Get-ItemProperty -Path "$($_.pspath)\Volatile Environment") }).PSParentPath.split("\")[-1]
-$HKCU = "Registry::HKEY_USERS\$Current_User_SID"
-$HKCU_Classes = "Registry::HKEY_USERS\$Current_User_SID" + "_Classes"
+$currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+if (Test-Path -LiteralPath "Registry::HKEY_USERS\$currentSid\Volatile Environment" -ErrorAction SilentlyContinue) {
+    $Current_User_SID = $currentSid
+    $HKCU = "Registry::HKEY_USERS\$Current_User_SID"
+    $HKCU_Classes = "Registry::HKEY_USERS\${Current_User_SID}_Classes"
+} else {
+    $HKCU = 'HKCU:'
+    $HKCU_Classes = 'HKCU:\Software\Classes'
+}
 $Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
 $Sources = $Current_Folder + "\" + "Sources\*"
 $Exported_Keys = @()
@@ -599,16 +605,29 @@ function Get-ChangelogForVersion {
         for ($i = 0; $i -lt $Lines.Count; $i++) {
             if ($Lines[$i] -match "^##\s+$Version") { $StartIndex = $i; break }
         }
-        if ($StartIndex -eq -1) { return "Visit https://github.com/Joly0/Run-in-Sandbox/blob/$Branch/CHANGELOG.md" }
+        
+        if ($StartIndex -eq -1) {
+            # Version not found, return full changelog with a note
+            $Note = "No specific changes found for version $Version. Showing full changelog:`n`n"
+            return $Note + $Content
+        }
         
         $ChangelogSection = @()
         for ($i = $StartIndex; $i -lt $Lines.Count; $i++) {
             if ($i -ne $StartIndex -and $Lines[$i] -match '^##\s+\d{4}-\d{2}-\d{2}') { break }
             $ChangelogSection += $Lines[$i]
         }
-        return ($ChangelogSection -join "`n").Trim()
+        
+        $Result = ($ChangelogSection -join "`n").Trim()
+        if ([string]::IsNullOrWhiteSpace($Result)) {
+            # Empty section found, return full changelog with a note
+            $Note = "No changes recorded for version $Version. Showing full changelog:`n`n"
+            return $Note + $Content
+        }
+        
+        return $Result
     } catch {
-        return "Visit https://github.com/Joly0/Run-in-Sandbox/blob/$Branch/CHANGELOG.md"
+        return "Unable to fetch changelog from GitHub. Please visit https://github.com/Joly0/Run-in-Sandbox/blob/$Branch/CHANGELOG.md"
     }
 }
 
@@ -620,6 +639,65 @@ function Show-UpdateToast {
     [Windows.Data.Xml.Dom.XmlDocument, Windows.Data.Xml.Dom.XmlDocument, ContentType = WindowsRuntime] | Out-Null
     
     $IconPath = "$Run_in_Sandbox_Folder\sandbox.ico"
+    # Create a simple batch file to launch the dialog
+    $HandlerScript = "$Run_in_Sandbox_Folder\temp\UpdateClickHandler.ps1"
+    $TempFolder = "$Run_in_Sandbox_Folder\temp"
+    if (-not (Test-Path $TempFolder)) { New-Item -ItemType Directory -Path $TempFolder -Force | Out-Null }
+    
+    # Clean up any existing scheduled task from previous versions
+    try {
+        $Task = Get-ScheduledTask -TaskName "RunInSandboxUpdateHandler" -ErrorAction SilentlyContinue
+        if ($Task) {
+            Unregister-ScheduledTask -TaskName "RunInSandboxUpdateHandler" -Confirm:$false
+        }
+    } catch {
+        # Ignore errors if task doesn't exist or can't be removed
+    }
+    
+    $ScriptContent = @"
+`$Run_in_Sandbox_Folder = "$Run_in_Sandbox_Folder"
+try {
+    . "`$Run_in_Sandbox_Folder\CommonFunctions.ps1"
+    Add-Type -AssemblyName PresentationFramework
+    
+    # Check if we're in STA mode
+    if ([System.Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') {
+        # Not in STA mode, start new PowerShell process
+        `$Command = "'`$Run_in_Sandbox_Folder = '$Run_in_Sandbox_Folder'; . '`$Run_in_Sandbox_Folder\CommonFunctions.ps1'; Show-ChangelogDialog -LatestVersion '$LatestVersion'"
+        Start-Process powershell.exe -ArgumentList "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -STA -Command `$Command"
+        exit
+    }
+    
+    Show-ChangelogDialog -LatestVersion "$LatestVersion"
+} catch {
+    Add-Type -AssemblyName PresentationFramework
+    [System.Windows.MessageBox]::Show("Error: `$(`$_.Exception.Message)", "Error", "OK", "Error")
+}
+"@
+    $ScriptContent | Set-Content -Path $HandlerScript
+    
+    # Create a batch file to launch the PowerShell script
+    $BatchFile = "$TempFolder\ShowUpdateDialog.bat"
+    @"
+@echo off
+powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File "$HandlerScript"
+exit
+"@ | Set-Content -Path $BatchFile
+    
+    # Register protocol handler for toast clicks
+    $ProtocolKey = "HKCU:\Software\Classes\run-in-sandbox-update"
+    if (-not (Test-Path $ProtocolKey)) {
+        New-Item -Path $ProtocolKey -Force | Out-Null
+        Set-ItemProperty -Path $ProtocolKey -Name "(Default)" -Value "URL:Run-in-Sandbox Update Protocol"
+        Set-ItemProperty -Path $ProtocolKey -Name "URL Protocol" -Value ""
+        $CommandKey = "$ProtocolKey\shell\open\command"
+        New-Item -Path $CommandKey -Force | Out-Null
+    } else {
+        $CommandKey = "$ProtocolKey\shell\open\command"
+    }
+    # Always update the command to use the batch file
+    Set-ItemProperty -Path $CommandKey -Name "(Default)" -Value "`"$BatchFile`""
+    
     $ToastXml = @"
 <toast activationType="protocol" launch="run-in-sandbox-update:$LatestVersion">
     <visual><binding template="ToastGeneric">
@@ -631,38 +709,29 @@ function Show-UpdateToast {
 </toast>
 "@
     
-    # Register protocol handler for toast clicks
-    $HandlerScript = "$Run_in_Sandbox_Folder\temp\UpdateClickHandler.ps1"
-    $TempFolder = "$Run_in_Sandbox_Folder\temp"
-    if (-not (Test-Path $TempFolder)) { New-Item -ItemType Directory -Path $TempFolder -Force | Out-Null }
-    
-    @"
-`$Run_in_Sandbox_Folder = "$Run_in_Sandbox_Folder"
-. "`$Run_in_Sandbox_Folder\CommonFunctions.ps1"
-Show-ChangelogDialog -LatestVersion "$LatestVersion"
-"@ | Set-Content -Path $HandlerScript
-    
-    $ProtocolKey = "HKCU:\Software\Classes\run-in-sandbox-update"
-    if (-not (Test-Path $ProtocolKey)) {
-        New-Item -Path $ProtocolKey -Force | Out-Null
-        Set-ItemProperty -Path $ProtocolKey -Name "(Default)" -Value "URL:Run-in-Sandbox Update Protocol"
-        Set-ItemProperty -Path $ProtocolKey -Name "URL Protocol" -Value ""
-        $CommandKey = "$ProtocolKey\shell\open\command"
-        New-Item -Path $CommandKey -Force | Out-Null
-        Set-ItemProperty -Path $CommandKey -Name "(Default)" -Value "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$HandlerScript`""
-    }
-    
     try {
+        # Create a temporary AppUserModelID if needed
+        $AppId = "Run-in-Sandbox"
+        $RegPath = "HKCU:\Software\Classes\AppUserModelId\$AppId"
+        if (-not (Test-Path $RegPath)) {
+            New-Item -Path $RegPath -Force | Out-Null
+            Set-ItemProperty -Path $RegPath -Name "DisplayName" -Value "Run-in-Sandbox"
+        }
+        
         $XmlDoc = [Windows.Data.Xml.Dom.XmlDocument]::new()
         $XmlDoc.LoadXml($ToastXml)
         $Toast = [Windows.UI.Notifications.ToastNotification]::new($XmlDoc)
-        [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier("Run-in-Sandbox").Show($Toast)
-    } catch {}
+        $Notifier = [Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier($AppId)
+        $Notifier.Show($Toast)
+    } catch {
+        Write-LogMessage -Message_Type "ERROR" -Message "[UPDATE] Failed to show toast notification: $($_.Exception.Message)"
+    }
 }
 
 # Show WPF dialog with changelog and update options
 function Show-ChangelogDialog {
     param([string]$LatestVersion)
+    
     $VersionInfo = Get-VersionInfo
     $Changelog = Get-ChangelogForVersion -Version $LatestVersion -Branch $VersionInfo.CurrentBranch
     $Strings = Get-LocalizedUpdateStrings -Language ([xml](Get-Content $XML_Config)).Configuration.Main_Language
@@ -670,13 +739,24 @@ function Show-ChangelogDialog {
     
     # Load XAML from file and replace placeholders
     $XamlPath = "$Run_in_Sandbox_Folder\RunInSandbox_UpdateDialog.xaml"
+    
+    if (-not (Test-Path $XamlPath)) {
+        [System.Windows.MessageBox]::Show("XAML file not found: $XamlPath", "Error", "OK", "Error")
+        return
+    }
+    
     $Xaml = Get-Content $XamlPath -Raw
+    
+    # Save changelog to a temporary file and load it from file
+    $TempChangelogFile = "$Run_in_Sandbox_Folder\temp\changelog_temp.txt"
+    $Changelog | Set-Content -Path $TempChangelogFile -Encoding UTF8
+    
     $Xaml = $Xaml -replace 'PLACEHOLDER_TITLE', ($Strings.DialogTitle -f $LatestVersion)
     $Xaml = $Xaml -replace 'PLACEHOLDER_CURRENT_LABEL', "$($Strings.CurrentVersionLabel): "
     $Xaml = $Xaml -replace 'PLACEHOLDER_CURRENT_VERSION', $VersionInfo.Current
     $Xaml = $Xaml -replace 'PLACEHOLDER_LATEST_LABEL', "$($Strings.LatestVersionLabel): "
     $Xaml = $Xaml -replace 'PLACEHOLDER_LATEST_VERSION', $LatestVersion
-    $Xaml = $Xaml -replace 'PLACEHOLDER_CHANGELOG', $Changelog
+    $Xaml = $Xaml -replace 'PLACEHOLDER_CHANGELOG', $TempChangelogFile
     $Xaml = $Xaml -replace 'PLACEHOLDER_FOOTER', $Strings.DialogFooter
     $Xaml = $Xaml -replace 'PLACEHOLDER_DISMISS_BUTTON', $Strings.DismissButton
     $Xaml = $Xaml -replace 'PLACEHOLDER_UPDATE_BUTTON', $Strings.UpdateButton
@@ -684,8 +764,15 @@ function Show-ChangelogDialog {
     try {
         $Reader = [System.Xml.XmlReader]::Create([System.IO.StringReader]$Xaml)
         $Window = [Windows.Markup.XamlReader]::Load($Reader)
+        
         $UpdateButton = $Window.FindName("UpdateButton")
         $DismissButton = $Window.FindName("DismissButton")
+        $ChangelogText = $Window.FindName("ChangelogText")
+        
+        # Load changelog from file
+        if ($ChangelogText -and (Test-Path $TempChangelogFile)) {
+            $ChangelogText.Text = Get-Content -Path $TempChangelogFile -Raw -Encoding UTF8
+        }
         
         $UpdateButton.Add_Click({
             # Save decision to update
@@ -705,7 +792,9 @@ function Show-ChangelogDialog {
         })
         
         $Window.ShowDialog() | Out-Null
-    } catch {}
+    } catch {
+        [System.Windows.MessageBox]::Show("Error showing dialog: $($_.Exception.Message)", "Error", "OK", "Error")
+    }
 }
 
 # Load localized strings for update UI
@@ -735,6 +824,7 @@ function Get-LocalizedUpdateStrings {
         RollbackTitle = $UpdateStrings.RollbackTitle
         RollbackMessage = $UpdateStrings.RollbackMessage
         ErrorTitle = $UpdateStrings.ErrorTitle
+        ViewChangesButton = if ($UpdateStrings.ViewChangesButton) { $UpdateStrings.ViewChangesButton } else { "View Changes" }
     }
 }
 
