@@ -34,6 +34,7 @@ function Test-IsAdmin {
 }
 
 function Invoke-AsAdmin {
+    [CmdletBinding()]
     param(
         [string]$EffectiveBranch,
         [switch]$NoCheckpoint,
@@ -74,7 +75,9 @@ function Invoke-AsAdmin {
 
     if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
         $argsList += "-Verbose"
-        Write-Verbose "Caller supplied -Verbose; forwarding to elevated process."
+        Write-Verbose "Forwarding -Verbose to elevated process."
+    } else {
+        Write-Verbose "Not forwarding -Verbose (caller did not supply it)."
     }
 
     Write-Verbose ("Elevation command: powershell.exe " + ($argsList -join " "))

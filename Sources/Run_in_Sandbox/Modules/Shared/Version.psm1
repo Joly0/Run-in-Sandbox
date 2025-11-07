@@ -11,6 +11,7 @@
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 
 function Resolve-Branch {
+    [CmdletBinding()]
     param(
         [string]$Requested,
         [bool]$Installed
@@ -74,6 +75,7 @@ function Get-InstalledBranch {
 }
 
 function Get-LatestVersionFromBranch {
+    [CmdletBinding()]
     param([string]$EffectiveBranch)
     try {
         $url = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$EffectiveBranch/version.json"

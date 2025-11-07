@@ -123,6 +123,7 @@ function Merge-SandboxConfig {
 }
 
 function Merge-ConfigIfNeeded {
+    [CmdletBinding()]
     param(
         [bool]$IsInstalled,
         [string]$RunFolder
