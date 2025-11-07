@@ -100,7 +100,7 @@ if (-not $moduleLoadSuccess) {
 $Branch = Resolve-Branch -Requested $Branch -Installed:$IsInstalled
 Write-Verbose "Effective branch: $Branch"
 
-Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate
+Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate -Verbose:$Verbose
 
 # -------------------------------------------------------------------------------------------------
 # Show minimal banner if not AutoUpdate
