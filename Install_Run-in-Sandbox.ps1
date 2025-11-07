@@ -353,7 +353,23 @@ function Sync-CoreFiles {
         Get-ChildItem -Path $sourceSandboxDir | Where-Object { $_.Name -notin @("startup-scripts", "Sandbox_Config.xml") } | ForEach-Object {
             $destPath = Join-Path $destSandboxDir $_.Name
             if ($_.PSIsContainer) {
-                Copy-Item $_.FullName $destPath -Recurse -Force
+                # If destination directory exists, sync contents instead of copying the whole directory
+                if (Test-Path $destPath) {
+                    # Sync the contents of the directory
+                    Get-ChildItem -Path $_.FullName -Recurse | ForEach-Object {
+                        $relativePath = $_.FullName.Substring($sourceSandboxDir.Length)
+                        $finalDestPath = Join-Path $destSandboxDir $relativePath
+                        # Ensure parent directory exists
+                        $parentDir = Split-Path $finalDestPath -Parent
+                        if (-not (Test-Path $parentDir)) {
+                            New-Item -Path $parentDir -ItemType Directory -Force | Out-Null
+                        }
+                        Copy-Item $_.FullName $finalDestPath -Force
+                    }
+                } else {
+                    # If destination doesn't exist, create it and copy contents
+                    Copy-Item $_.FullName $destPath -Recurse -Force
+                }
             } else {
                 Copy-Item $_.FullName $destPath -Force
             }
@@ -471,11 +487,23 @@ function Merge-ConfigIfNeeded {
     } catch {
         Write-Verbose "Merge-SandboxConfig failed, attempting simple merge: $($_.Exception.Message)"
         try {
-            [xml]$oldConfig = Get-Content $ConfigBackup
-            [xml]$newConfig = Get-Content "$RunFolder\Sandbox_Config.xml"
+            # Load XML with preservation of whitespace and comments
+            $oldConfig = New-Object System.Xml.XmlDocument
+            $oldConfig.PreserveWhitespace = $true
+            $oldConfig.Load($ConfigBackup)
+            
+            $newConfig = New-Object System.Xml.XmlDocument
+            $newConfig.PreserveWhitespace = $true
+            $newConfig.Load("$RunFolder\Sandbox_Config.xml")
+            
             if ($oldConfig.Configuration -and $newConfig.Configuration) {
+                # Preserve user settings but skip CurrentVersion (always use new version)
                 foreach ($child in $oldConfig.Configuration.ChildNodes) {
+                    # Skip non-element nodes
                     if ($child.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
+                    if ($child.Name -eq "CurrentVersion") { continue }
+                    
+                    # Find corresponding element in new config
                     $target = $null
                     foreach ($n in $newConfig.Configuration.ChildNodes) {
                         if ($n.NodeType -eq [System.Xml.XmlNodeType]::Element -and $n.Name -eq $child.Name) {
@@ -483,11 +511,39 @@ function Merge-ConfigIfNeeded {
                             break
                         }
                     }
+                    
                     if ($target) {
-                        $target.InnerText = $child.InnerText
+                        # Preserve the value with proper data type handling
+                        if ($child.InnerText -eq "true" -or $child.InnerText -eq "false") {
+                            # Handle boolean values
+                            $target.InnerText = $child.InnerText.ToLower()
+                        } elseif ([string]::IsNullOrEmpty($child.InnerText)) {
+                            # Handle empty values
+                            $target.InnerText = ""
+                        } else {
+                            # Handle regular string values
+                            $target.InnerText = $child.InnerText
+                        }
                     }
                 }
-                $newConfig.Save("$RunFolder\Sandbox_Config.xml") | Out-Null
+                
+                # Save with proper formatting
+                $settings = New-Object System.Xml.XmlWriterSettings
+                $settings.Indent = $true
+                $settings.IndentChars = "    "
+                $settings.NewLineOnAttributes = $false
+                $settings.OmitXmlDeclaration = $false
+                
+                $writer = [System.Xml.XmlWriter]::Create("$RunFolder\Sandbox_Config.xml", $settings)
+                try {
+                    $newConfig.Save($writer)
+                } finally {
+                    $writer.Close()
+                }
+                
+                # Validate the saved XML
+                $validateConfig = New-Object System.Xml.XmlDocument
+                $validateConfig.Load("$RunFolder\Sandbox_Config.xml")
             }
         } catch {
             Write-Verbose "Simple merge failed: $($_.Exception.Message)"

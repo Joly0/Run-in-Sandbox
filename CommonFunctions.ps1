@@ -841,14 +841,82 @@ function Get-UpdateDecision {
 # Merge user settings from old config into new config
 function Merge-SandboxConfig {
     param([string]$OldConfigPath, [string]$NewConfigPath)
-    $OldConfig = [xml](Get-Content $OldConfigPath)
-    $NewConfig = [xml](Get-Content $NewConfigPath)
     
-    # Preserve user settings but skip CurrentVersion (always use new version)
-    foreach ($Child in $OldConfig.Configuration.ChildNodes) {
-        if ($Child.Name -eq "CurrentVersion") { continue }
-        $NewSetting = $NewConfig.Configuration.SelectSingleNode($Child.Name)
-        if ($NewSetting) { $NewSetting.InnerText = $Child.InnerText }
+    try {
+        # Validate input files exist
+        if (-not (Test-Path $OldConfigPath)) {
+            throw "Old config file not found: $OldConfigPath"
+        }
+        if (-not (Test-Path $NewConfigPath)) {
+            throw "New config file not found: $NewConfigPath"
+        }
+        
+        # Load XML with preservation of whitespace and comments
+        $OldConfig = New-Object System.Xml.XmlDocument
+        $OldConfig.PreserveWhitespace = $true
+        $OldConfig.Load($OldConfigPath)
+        
+        $NewConfig = New-Object System.Xml.XmlDocument
+        $NewConfig.PreserveWhitespace = $true
+        $NewConfig.Load($NewConfigPath)
+        
+        # Validate XML structure
+        if (-not $OldConfig.Configuration) {
+            throw "Invalid old config: missing Configuration element"
+        }
+        if (-not $NewConfig.Configuration) {
+            throw "Invalid new config: missing Configuration element"
+        }
+        
+        # Preserve user settings but skip CurrentVersion (always use new version)
+        foreach ($Child in $OldConfig.Configuration.ChildNodes) {
+            # Skip non-element nodes
+            if ($Child.NodeType -ne [System.Xml.XmlNodeType]::Element) { continue }
+            if ($Child.Name -eq "CurrentVersion") { continue }
+            
+            # Find corresponding element in new config
+            $NewSetting = $null
+            foreach ($node in $NewConfig.Configuration.ChildNodes) {
+                if ($node.NodeType -eq [System.Xml.XmlNodeType]::Element -and $node.Name -eq $Child.Name) {
+                    $NewSetting = $node
+                    break
+                }
+            }
+            
+            if ($NewSetting) {
+                # Preserve the value with proper data type handling
+                if ($Child.InnerText -eq "true" -or $Child.InnerText -eq "false") {
+                    # Handle boolean values
+                    $NewSetting.InnerText = $Child.InnerText.ToLower()
+                } elseif ([string]::IsNullOrEmpty($Child.InnerText)) {
+                    # Handle empty values
+                    $NewSetting.InnerText = ""
+                } else {
+                    # Handle regular string values
+                    $NewSetting.InnerText = $Child.InnerText
+                }
+            }
+        }
+        
+        # Save with proper formatting
+        $settings = New-Object System.Xml.XmlWriterSettings
+        $settings.Indent = $true
+        $settings.IndentChars = "    "
+        $settings.NewLineOnAttributes = $false
+        $settings.OmitXmlDeclaration = $false
+        
+        $writer = [System.Xml.XmlWriter]::Create($NewConfigPath, $settings)
+        try {
+            $NewConfig.Save($writer)
+        } finally {
+            $writer.Close()
+        }
+        
+        # Validate the saved XML
+        $validateConfig = New-Object System.Xml.XmlDocument
+        $validateConfig.Load($NewConfigPath)
+        
+    } catch {
+        throw "Error merging configuration: $($_.Exception.Message)"
     }
-    $NewConfig.Save($NewConfigPath)
 }
