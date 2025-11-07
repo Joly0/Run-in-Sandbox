@@ -163,8 +163,8 @@ if ($IsInstalled) {
     }
 
     # Optional DeepClean prompt (only interactive)
-    $DeepClean = Get-DeepCleanConsent -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean
-    Invoke-DeepCleanIfRequested -DeepClean:$DeepClean
+    $DeepClean = Get-DeepCleanConsent -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean -Verbose:$VerbosePreference
+    Invoke-DeepCleanIfRequested -DeepClean:$DeepClean -Verbose:$VerbosePreference
 
     if (-not $AutoUpdate) {
         Write-Host ""
@@ -189,7 +189,7 @@ try {
 
 # Preserve config for merge (if update)
 $DefaultStartupNames = Get-DefaultStartupScriptNames -ExtractPath $extractPath
-Remove-OldInstallIfDeepClean -DeepClean:$DeepClean -RunFolder:$Run_in_Sandbox_Folder -DefaultNames $DefaultStartupNames
+Remove-OldInstallIfDeepClean -DeepClean:$DeepClean -RunFolder:$Run_in_Sandbox_Folder -DefaultNames $DefaultStartupNames -Verbose:$VerbosePreference
 # If we performed a deep-clean, treat this run as a fresh install for the rest of the flow
 if ($DeepClean) { $IsInstalled = $false }
 $ConfigBackup = $null
@@ -199,8 +199,8 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 }
 
 try {
-    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled -Verbose:$VerbosePreference
-    Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder
+    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled -Verbose:$VerbosePreference -Verbose:$VerbosePreference
+    Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder -Verbose:$VerbosePreference
     
     # Only sync files for updates, not for new installations
     if ($IsInstalled) {
