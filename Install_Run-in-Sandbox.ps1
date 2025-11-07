@@ -103,25 +103,6 @@ Write-Verbose "Effective branch: $Branch"
 Ensure-Admin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate
 
 # -------------------------------------------------------------------------------------------------
-# Load common functions (prefer online for current branch, fallback to local) in script scope
-# -------------------------------------------------------------------------------------------------
-try {
-    $commonFunctionsUrl = "https://raw.githubusercontent.com/$DefaultRepoOwner/$RepoName/$Branch/CommonFunctions.ps1"
-    Write-Verbose ("Loading CommonFunctions from: {0}" -f $commonFunctionsUrl)
-    $commonFunctionsContent = Invoke-RestMethod -Uri $commonFunctionsUrl -UseBasicParsing -TimeoutSec 45
-    . ([ScriptBlock]::Create($commonFunctionsContent)) # dot-source into script scope
-    Write-Verbose "CommonFunctions loaded from GitHub."
-} catch {
-    $localCommonFunctionsPath = Join-Path $Run_in_Sandbox_Folder "CommonFunctions.ps1"
-    if (Test-Path $localCommonFunctionsPath) {
-        . $localCommonFunctionsPath
-        Write-Verbose "CommonFunctions loaded from local path."
-    } else {
-        throw "CommonFunctions.ps1 could not be loaded."
-    }
-}
-
-# -------------------------------------------------------------------------------------------------
 # Show minimal banner if not AutoUpdate
 # -------------------------------------------------------------------------------------------------
 if (-not $AutoUpdate -and $IsInstalled) {
