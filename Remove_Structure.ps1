@@ -1,5 +1,5 @@
 ﻿param (
-    [Switch]$DeepClean
+    [Switch]$Global:DeepClean
 )
 
 $Current_Folder = $PSScriptRoot
