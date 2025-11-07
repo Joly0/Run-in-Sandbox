@@ -1,19 +1,7 @@
 # Define global variables (preserving original lines 1-19)
 $TEMP_Folder = $env:temp
 $Log_File = "$TEMP_Folder\RunInSandbox_Install.log"
-$Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $XML_Config = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
-$Windows_Version = (Get-CimInstance -class Win32_OperatingSystem).Caption
-$currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-if (Test-Path -LiteralPath "Registry::HKEY_USERS\$currentSid\Volatile Environment" -ErrorAction SilentlyContinue) {
-    $Current_User_SID = $currentSid
-    $HKCU = "Registry::HKEY_USERS\$Current_User_SID"
-    $HKCU_Classes = "Registry::HKEY_USERS\${Current_User_SID}_Classes"
-} else {
-    $HKCU = 'HKCU:'
-    $HKCU_Classes = 'HKCU:\Software\Classes'
-}
-$Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
 # $Current_Folder is not defined in this context, so we'll use $ScriptDir instead
 # This ensures the Sources variable works correctly
 $Sources = "$ScriptDir\Sources\*"

@@ -9,19 +9,19 @@
 #>
 
 # Global variables
-$Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
-$Windows_Version = (Get-CimInstance -class Win32_OperatingSystem).Caption
-$currentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
-if (Test-Path -LiteralPath "Registry::HKEY_USERS\$currentSid\Volatile Environment" -ErrorAction SilentlyContinue) {
-    $Current_User_SID = $currentSid
-    $HKCU = "Registry::HKEY_USERS\$Current_User_SID"
-    $HKCU_Classes = "Registry::HKEY_USERS\${Current_User_SID}_Classes"
+$Global:Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
+$Global:Windows_Version = (Get-CimInstance -class Win32_OperatingSystem).Caption
+$Global:CurrentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+if (Test-Path -LiteralPath "Registry::HKEY_USERS\$CurrentSid\Volatile Environment" -ErrorAction SilentlyContinue) {
+    $Global:Current_User_SID = $CurrentSid
+    $Global:HKCU = "Registry::HKEY_USERS\$Current_User_SID"
+    $Global:HKCU_Classes = "Registry::HKEY_USERS\${Current_User_SID}_Classes"
 } else {
-    $HKCU = 'HKCU:'
-    $HKCU_Classes = 'HKCU:\Software\Classes'
+    $Global:HKCU = 'HKCU:'
+    $Global:HKCU_Classes = 'HKCU:\Software\Classes'
 }
-$Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
-$Sources = $Current_Folder + "\" + "Sources\*"
+$Global:Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
+$Global:Sources = $Current_Folder + "\" + "Sources\*"
 
 # Load Windows Forms assembly for message boxes
 [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
