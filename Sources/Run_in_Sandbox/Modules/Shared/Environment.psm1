@@ -7,10 +7,9 @@
     for the Run-in-Sandbox application. It handles admin checks, source validation, 
     and file operations.
 #>
-
-# Global variables
 [CmdletBinding()] param()
 
+# Global variables
 $Global:Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $Global:Windows_Version = (Get-CimInstance -class Win32_OperatingSystem).Caption
 $Global:CurrentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
