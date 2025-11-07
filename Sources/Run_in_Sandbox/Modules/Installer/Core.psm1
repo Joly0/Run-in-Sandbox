@@ -346,7 +346,7 @@ function Invoke-AddStructure {
     Push-Location $ExtractPath
     try {
         if ($NoCheckpoint) {
-            & ".\Add_Structure.ps1" -NoCheckpoint
+            & ".\Add_Structure.ps1" -NoCheckpoint -Verbose:$Verbose
         } else {
             & ".\Add_Structure.ps1"
         }

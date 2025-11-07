@@ -199,7 +199,7 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 }
 
 try {
-    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled
+    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled -Verbose:$Verbose
     Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder
     
     # Only sync files for updates, not for new installations
