@@ -78,7 +78,7 @@ if (-not $moduleLoadSuccess) {
     
     # Fallback to CommonFunctions.ps1
     try {
-        $commonFunctionsUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Branch/CommonFunctions.ps1"
+        $commonFunctionsUrl = "https://raw.githubusercontent.com/$DefaultRepoOwner/$RepoName/$Branch/CommonFunctions.ps1"
         Write-Verbose ("Loading CommonFunctions from: {0}" -f $commonFunctionsUrl)
         $commonFunctionsContent = Invoke-RestMethod -Uri $commonFunctionsUrl -UseBasicParsing -TimeoutSec 45
         . ([ScriptBlock]::Create($commonFunctionsContent)) # dot-source into script scope
@@ -106,7 +106,7 @@ Ensure-Admin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$De
 # Load common functions (prefer online for current branch, fallback to local) in script scope
 # -------------------------------------------------------------------------------------------------
 try {
-    $commonFunctionsUrl = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$Branch/CommonFunctions.ps1"
+    $commonFunctionsUrl = "https://raw.githubusercontent.com/$DefaultRepoOwner/$RepoName/$Branch/CommonFunctions.ps1"
     Write-Verbose ("Loading CommonFunctions from: {0}" -f $commonFunctionsUrl)
     $commonFunctionsContent = Invoke-RestMethod -Uri $commonFunctionsUrl -UseBasicParsing -TimeoutSec 45
     . ([ScriptBlock]::Create($commonFunctionsContent)) # dot-source into script scope
