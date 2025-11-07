@@ -86,7 +86,7 @@ function Add-RegItem {
                 New-Item -Path $Shell_Registry_Key -Name $MainMenuLabel -Force | Out-Null
                 New-ItemProperty -Path $MainMenuLabel_Path -Name "subcommands" -PropertyType String | Out-Null
                 New-Item -Path $MainMenuLabel_Path -Name "Shell" -Force | Out-Null
-                New-ItemProperty -Path $MainMenuLabel_Path -Name "icon" -PropertyType String -Value $Sandbox_Icon -ErrorAction Stop | Out-Null
+                New-ItemProperty -Path $MainMenuLabel_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -ErrorAction Stop | Out-Null
             }
             $Key_Label_Path = "$MainMenuLabel_Path\Shell\$Key_Label"
             $Command_Path = "$Key_Label_Path\Command"
@@ -101,7 +101,7 @@ function Add-RegItem {
         New-Item -Path $Key_Label_Path -ErrorAction Stop | Out-Null
         New-Item -Path $Command_Path -ErrorAction Stop | Out-Null
         if (-not $MainMenuSwitch) {
-            New-ItemProperty -Path $Key_Label_Path -Name "icon" -PropertyType String -Value $Sandbox_Icon -ErrorAction Stop | Out-Null
+            New-ItemProperty -Path $Key_Label_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -ErrorAction Stop | Out-Null
         }
         Set-Item -Path $Command_Path -Value $Command_for -Force -ErrorAction Stop | Out-Null
 
@@ -132,7 +132,7 @@ function Remove-RegItem {
     
     
     if (-not (Test-Path -Path $Key_Label_Path) ) {
-        if ($DeepClean) {
+        if ($Global:DeepClean) {
             Write-LogMessage -Message_Type "INFO" -Message "Registry Path for $Type has already been removed by deepclean"
             return
         }

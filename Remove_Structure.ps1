@@ -1,5 +1,5 @@
 ﻿param (
-    [Switch]$Global:DeepClean
+    [Switch]$DeepClean
 )
 
 $Current_Folder = $PSScriptRoot
@@ -21,11 +21,15 @@ if ( (Test-Path -LiteralPath $Run_in_Sandbox_Folder) -and (-not $DeepClean) ) {
 }
 
 if ($DeepClean) {
+    # Set global variable for use in other modules
+    $Global:DeepClean = $true
+    
     Write-LogMessage -Message_Type "INFO" -Message "Script has been started with deep cleaning enabled. This might take a moment"
     [String[]] $results = @()
     $results = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT'
     $results += Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT\SystemFileAssociations'
     $results += Find-RegistryIconPaths -rootRegistryPath $HKCU_Classes
+    # Only filter out the duplicate SystemFileAssociations\SystemFileAssociations entries, keep valid SystemFileAssociations entries
     $results = $results | Where-Object { $_ -notlike "REGISTRY::HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
     $results = $results | Select-Object -Unique | Sort-Object
     

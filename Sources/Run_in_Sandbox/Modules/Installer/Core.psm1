@@ -42,6 +42,10 @@ function New-InstallBackup {
 function Invoke-DeepCleanIfRequested {
     param([switch]$DeepClean)
     if (-not $DeepClean) { return }
+    
+    # Set global variable for use in other modules
+    $Global:DeepClean = $true
+    
     Write-Info "Performing deep-clean..." ([ConsoleColor]::Yellow)
 
     if (Get-Command Find-RegistryIconPaths -ErrorAction SilentlyContinue) {
