@@ -16,9 +16,8 @@ param (
 # ======================================================================================
 
 # Configuration
-$RepoOwner = "Joly0"
+$DefaultRepoOwner = "Joly0"
 $RepoName = "Run-in-Sandbox"
-$DefaultBranch = $Branch
 
 # Globals
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
@@ -28,11 +27,11 @@ $IsInstalled = Test-Path $Run_in_Sandbox_Folder
 function Import-ModuleFromGitHub {
     param(
         [string]$ModulePath,
-        [string]$function:Branch = $DefaultBranch,
-        [string]$function:RepoOwner = $script:RepoOwner
+        [string]$Branch = $DefaultBranch,
+        [string]$RepoOwner = $DefaultRepoOwner
     )
     
-    $moduleUrl = "https://raw.githubusercontent.com/$function:RepoOwner/$RepoName/$function:Branch/$ModulePath"
+    $moduleUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$Branch/$ModulePath"
     try {
         Write-Verbose "Loading module from: $moduleUrl"
         $moduleContent = Invoke-RestMethod -Uri $moduleUrl -UseBasicParsing -TimeoutSec 30
@@ -47,13 +46,13 @@ function Import-ModuleFromGitHub {
 
 # Load required modules from GitHub
 $moduleLoadSuccess = $true
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Logging.psm1" -Branch $Branch -RepoOwner $RepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Version.psm1" -Branch $Branch -RepoOwner $RepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Environment.psm1" -Branch $Branch -RepoOwner $RepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Config.psm1" -Branch $Branch -RepoOwner $RepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Core.psm1" -Branch $Branch -RepoOwner $RepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Registry.psm1" -Branch $Branch -RepoOwner $RepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Validation.psm1" -Branch $Branch -RepoOwner $RepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Logging.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Version.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Environment.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Config.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Core.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Registry.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
+$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Validation.psm1" -Branch $Branch -RepoOwner $DefaultRepoOwner)
 
 if (-not $moduleLoadSuccess) {
     Write-Info "Failed to load modules from GitHub. This might be due to network issues or an invalid branch." ([ConsoleColor]::Red)
