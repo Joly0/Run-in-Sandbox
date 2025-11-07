@@ -12,6 +12,7 @@ $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $XML_Config = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
 
 function Get-Config {
+    Write-Host "Reading file $XML_Config"
     if ( [string]::IsNullOrEmpty($XML_Config) ) {
         return
     }

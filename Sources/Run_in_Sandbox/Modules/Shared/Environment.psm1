@@ -32,7 +32,7 @@ function Test-IsAdmin {
     return $windowsPrincipal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 }
 
-function Ensure-Admin {
+function Invoke-AsAdmin {
     param(
         [string]$EffectiveBranch,
         [switch]$NoCheckpoint,
@@ -114,7 +114,7 @@ function Test-ForSources {
     
     if (-not $sourcesPath) {
         Write-LogMessage -Message_Type "ERROR" -Message "Sources folder is missing"
-        Write-LogMessage -Message_Type "ERROR" -Message "Check files in the folder \Sources\*"
+        Write-LogMessage -Message_Type "ERROR" -Message "Check files in the folder $sourcesPath"
         [System.Windows.Forms.MessageBox]::Show("It seems you haven´t downloaded all the folder structure.`nThe folder `"Sources`" is missing !!!")
         EXIT
     }
@@ -246,7 +246,7 @@ function New-Checkpoint {
 
 Export-ModuleMember -Function @(
     'Test-IsAdmin',
-    'Ensure-Admin',
+    'Invoke-AsAdmin',
     'Test-ForAdmin',
     'Test-ForSources',
     'Test-ForSandbox',

@@ -85,7 +85,7 @@ function Get-LatestVersionFromBranch {
     }
 }
 
-function Ensure-VersionJson {
+function Get-VersionJson {
     param(
         [string]$RunFolder,
         [string]$ExtractPath,
@@ -119,5 +119,5 @@ Export-ModuleMember -Function @(
     'Get-CurrentVersionSimple',
     'Get-InstalledBranch',
     'Get-LatestVersionFromBranch',
-    'Ensure-VersionJson'
+    'Get-VersionJson'
 )

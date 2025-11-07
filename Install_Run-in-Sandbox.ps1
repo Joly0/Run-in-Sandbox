@@ -100,7 +100,7 @@ if (-not $moduleLoadSuccess) {
 $Branch = Resolve-Branch -Requested $Branch -Installed:$IsInstalled
 Write-Verbose "Effective branch: $Branch"
 
-Ensure-Admin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate
+Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate
 
 # -------------------------------------------------------------------------------------------------
 # Show minimal banner if not AutoUpdate
@@ -163,7 +163,7 @@ if ($IsInstalled) {
     }
 
     # Optional DeepClean prompt (only interactive)
-    $DeepClean = Prompt-OptionalDeepClean -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean
+    $DeepClean = Request-OptionalDeepClean -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean
     Invoke-DeepCleanIfRequested -DeepClean:$DeepClean
 
     if (-not $AutoUpdate) {
@@ -212,7 +212,7 @@ try {
         Sync-CoreFiles @syncParams
         Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
     }
-    Ensure-VersionJson -RunFolder $Run_in_Sandbox_Folder -ExtractPath $extractPath -EffectiveBranch $Branch -LatestVersion $LatestVersion
+    Get-VersionJson -RunFolder $Run_in_Sandbox_Folder -ExtractPath $extractPath -EffectiveBranch $Branch -LatestVersion $LatestVersion
 
     $valid = Validate-Installation -RunFolder $Run_in_Sandbox_Folder
     if (-not $valid) {

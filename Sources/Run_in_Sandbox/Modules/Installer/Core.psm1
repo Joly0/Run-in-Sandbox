@@ -7,7 +7,7 @@
     It handles the main installation process and coordination of installation steps.
 #>
 
-function Prompt-OptionalDeepClean {
+function Request-OptionalDeepClean {
     param([switch]$AutoUpdate, [switch]$DeepCleanRef)
     if ($AutoUpdate) { return $DeepCleanRef }
 
@@ -326,7 +326,7 @@ function Cleanup-Temp {
 }
 
 Export-ModuleMember -Function @(
-    'Prompt-OptionalDeepClean',
+    'Request-OptionalDeepClean',
     'New-InstallBackup',
     'Invoke-DeepCleanIfRequested',
     'Download-And-Extract',
