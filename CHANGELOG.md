@@ -57,7 +57,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `Find-Host7Zip` function for detecting system 7-Zip installations
 - `Get-Latest7ZipDownloadUrl` function for GitHub API integration
 - `Update-7ZipCache` function for smart installer management
-- `Ensure-7ZipCache` function for offline-capable cache validation
+- `Initialize-7ZipCache` function for offline-capable cache validation
 - Version tracking and age-based cache refresh mechanism
 
 

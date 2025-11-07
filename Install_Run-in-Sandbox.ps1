@@ -163,7 +163,7 @@ if ($IsInstalled) {
     }
 
     # Optional DeepClean prompt (only interactive)
-    $DeepClean = Request-OptionalDeepClean -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean
+    $DeepClean = Get-DeepCleanConsent -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean
     Invoke-DeepCleanIfRequested -DeepClean:$DeepClean
 
     if (-not $AutoUpdate) {
@@ -178,7 +178,7 @@ if ($IsInstalled) {
 # -------------------------------------------------------------------------------------------------
 $extractPath = $null
 try {
-    $extractPath = Download-And-Extract -EffectiveBranch $Branch
+    $extractPath = Install-PackageArchive -EffectiveBranch $Branch
 } catch {
     Write-Info $_ ([ConsoleColor]::Red)
     if ($BackupCreated) {
@@ -199,7 +199,7 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 }
 
 try {
-    Run-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled
+    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled
     Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder
     
     # Only sync files for updates, not for new installations
@@ -209,12 +209,12 @@ try {
             RunFolder = $Run_in_Sandbox_Folder
             DefaultNames = $DefaultStartupNames
         }
-        Sync-CoreFiles @syncParams
+        Update-CoreFiles @syncParams
         Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
     }
     Get-VersionJson -RunFolder $Run_in_Sandbox_Folder -ExtractPath $extractPath -EffectiveBranch $Branch -LatestVersion $LatestVersion
 
-    $valid = Validate-Installation -RunFolder $Run_in_Sandbox_Folder
+    $valid = Test-Installation -RunFolder $Run_in_Sandbox_Folder
     if (-not $valid) {
         Write-Info "Installation validation failed!" ([ConsoleColor]::Red)
         if ($BackupCreated) {
@@ -263,7 +263,7 @@ try {
         Write-Info "Warning: Failed to set folder permissions: $($_.Exception.Message)" ([ConsoleColor]::Yellow)
     }
 
-    Cleanup-Temp -ExtractPath $extractPath -RunFolder $Run_in_Sandbox_Folder
+    Clear-TempArtifacts -ExtractPath $extractPath -RunFolder $Run_in_Sandbox_Folder
 
     if ($IsInstalled) {
         Write-Info ("Update completed successfully. Branch: {0}" -f $Branch) ([ConsoleColor]::Green)
