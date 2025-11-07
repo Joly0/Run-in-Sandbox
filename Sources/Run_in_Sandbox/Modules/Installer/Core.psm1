@@ -41,42 +41,79 @@ function New-InstallBackup {
 
 function Invoke-DeepCleanIfRequested {
     param([switch]$DeepClean)
-    if (-not $DeepClean) { return }
+    if (-not $DeepClean) {
+        Write-Verbose "Invoke-DeepCleanIfRequested: DeepClean not requested, skipping"
+        return
+    }
     
     # Set global variable for use in other modules
     $Global:DeepClean = $true
+    Write-Verbose "Invoke-DeepCleanIfRequested: Set Global:DeepClean = $true"
     
     Write-Info "Performing deep-clean..." ([ConsoleColor]::Yellow)
 
     if (Get-Command Find-RegistryIconPaths -ErrorAction SilentlyContinue) {
+        Write-Verbose "Invoke-DeepCleanIfRequested: Find-RegistryIconPaths command available, proceeding with deep clean"
         [string[]]$registryPaths = @()
-        $registryPaths = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT'
-        $registryPaths += Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT\SystemFileAssociations'
+        
+        Write-Verbose "Invoke-DeepCleanIfRequested: Searching HKEY_CLASSES_ROOT"
+        $hklmPaths = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT'
+        $registryPaths += $hklmPaths
+        Write-Verbose "Invoke-DeepCleanIfRequested: Found $($hklmPaths.Count) paths in HKEY_CLASSES_ROOT"
+        
+        Write-Verbose "Invoke-DeepCleanIfRequested: Searching HKEY_CLASSES_ROOT\SystemFileAssociations"
+        $sfaPaths = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT\SystemFileAssociations'
+        $registryPaths += $sfaPaths
+        Write-Verbose "Invoke-DeepCleanIfRequested: Found $($sfaPaths.Count) paths in SystemFileAssociations"
 
+        Write-Verbose "Invoke-DeepCleanIfRequested: Getting current user SID for HKCU_Classes"
         $currentUserSid = (Get-ChildItem -Path Registry::\HKEY_USERS | Where-Object { Test-Path -Path "$($_.pspath)\Volatile Environment" } | ForEach-Object { (Get-ItemProperty -Path "$($_.pspath)\Volatile Environment") }).PSParentPath.split("\")[-1]
         $hkcuClassesPath = "HKEY_USERS\$currentUserSid" + "_Classes"
+        Write-Verbose "Invoke-DeepCleanIfRequested: HKCU_Classes path = $hkcuClassesPath"
 
-        $registryPaths += Find-RegistryIconPaths -rootRegistryPath $hkcuClassesPath
+        Write-Verbose "Invoke-DeepCleanIfRequested: Searching HKCU_Classes"
+        $hkcuPaths = Find-RegistryIconPaths -rootRegistryPath $hkcuClassesPath
+        $registryPaths += $hkcuPaths
+        Write-Verbose "Invoke-DeepCleanIfRequested: Found $($hkcuPaths.Count) paths in HKCU_Classes"
+        
+        # Additional search in HKEY_CURRENT_USER\Software\Classes for thorough cleaning
+        Write-Verbose "Invoke-DeepCleanIfRequested: Searching HKCU\Software\Classes"
+        $hkcuSoftwarePaths = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CURRENT_USER\Software\Classes'
+        $registryPaths += $hkcuSoftwarePaths
+        Write-Verbose "Invoke-DeepCleanIfRequested: Found $($hkcuSoftwarePaths.Count) paths in HKCU\Software\Classes"
+        
+        Write-Verbose "Invoke-DeepCleanIfRequested: Total paths before filtering: $($registryPaths.Count)"
         $registryPaths = $registryPaths | Where-Object { $_ -notlike "HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
         $registryPaths = $registryPaths | Select-Object -Unique | Sort-Object
+        Write-Verbose "Invoke-DeepCleanIfRequested: Final count of unique paths to remove: $($registryPaths.Count)"
 
         foreach ($registryPath in $registryPaths) {
+            Write-Verbose "Invoke-DeepCleanIfRequested: Processing registry path: $registryPath"
             try {
+                Write-Verbose "Invoke-DeepCleanIfRequested: Getting child items for recursive removal"
                 Get-ChildItem -Path $registryPath -Recurse |
                     Sort-Object { $_.PSPath.Split('\').Count } -Descending |
                     Select-Object -ExpandProperty PSPath |
                     Remove-Item -Force -Confirm:$false -ErrorAction Stop
+                Write-Verbose "Invoke-DeepCleanIfRequested: Removed all child items from $registryPath"
 
                 if (Test-Path -Path $registryPath) {
+                    Write-Verbose "Invoke-DeepCleanIfRequested: Removing main registry path: $registryPath"
                     Remove-Item -LiteralPath $registryPath -Force -Recurse -Confirm:$false -ErrorAction Stop
+                    Write-Verbose "Invoke-DeepCleanIfRequested: Successfully removed main registry path"
+                } else {
+                    Write-Verbose "Invoke-DeepCleanIfRequested: Registry path already removed: $registryPath"
                 }
                 Write-Info -Message "Removed: $registryPath" -Color ([ConsoleColor]::Green)
             } catch {
+                Write-Verbose "Invoke-DeepCleanIfRequested: Failed to remove registry path: $registryPath - Error: $($_.Exception.Message)"
                 Write-Error "Failed to remove: $registryPath - $($_.Exception.Message)"
             }
         }
         Write-Info -Message "Deep-clean completed." -Color ([ConsoleColor]::Green)
+        Write-Verbose "Invoke-DeepCleanIfRequested: Deep clean process completed successfully"
     } else {
+        Write-Verbose "Invoke-DeepCleanIfRequested: Find-RegistryIconPaths command not available"
         Write-Info -Message "Deep-clean helpers not available, skipping..." -Color ([ConsoleColor]::Yellow)
     }
 }

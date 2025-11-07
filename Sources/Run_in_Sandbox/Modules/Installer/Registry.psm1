@@ -7,6 +7,9 @@
     It handles reading, writing, and validating registry entries for installation.
 #>
 
+# Import Environment module to access $Sandbox_Icon variable
+Import-Module "$PSScriptRoot\..\Shared\Environment.psm1" -Force
+
 # Function to export registry configuration
 function Export-RegConfig {
     param (
@@ -58,12 +61,30 @@ function Add-RegItem {
         [switch] $MainMenuSwitch
     )
     
+    # Verbose logging for debugging
+    Write-Verbose "Add-RegItem: Starting registry item addition"
+    Write-Verbose "Add-RegItem: Type = $Type, Entry_Name = $Entry_Name"
+    Write-Verbose "Add-RegItem: Reg_Path = $Reg_Path"
+    Write-Verbose "Add-RegItem: Sub_Reg_Path = $Sub_Reg_Path"
+    Write-Verbose "Add-RegItem: Key_Label = $Key_Label"
+    Write-Verbose "Add-RegItem: MainMenuSwitch = $MainMenuSwitch"
+    # Ensure we have access to the Sandbox_Icon variable
+    if (-not $Global:Sandbox_Icon) {
+        $Global:Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
+    }
+    Write-Verbose "Add-RegItem: Sandbox_Icon variable value = $Global:Sandbox_Icon"
+    Write-Verbose "Add-RegItem: Sandbox_Icon file exists = $(Test-Path $Global:Sandbox_Icon)"
+    
     $Base_Registry_Key = "$Reg_Path\$Sub_Reg_Path"
     $Shell_Registry_Key = "$Base_Registry_Key\Shell"
     $Key_Label_Path = "$Shell_Registry_Key\$Key_Label"
     $MainMenuLabel_Path = "$Shell_Registry_Key\$MainMenuLabel"
     $Command_Path = "$Key_Label_Path\Command"
     $Command_for = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+    
+    Write-Verbose "Add-RegItem: Base_Registry_Key = $Base_Registry_Key"
+    Write-Verbose "Add-RegItem: Shell_Registry_Key = $Shell_Registry_Key"
+    Write-Verbose "Add-RegItem: Key_Label_Path = $Key_Label_Path"
     
     Export-RegConfig -Reg_Path $($Base_Registry_Key.Split("::")[-1]) -Type $Type -Sub_Reg_Path $Sub_Reg_Path -ErrorAction Continue
     
@@ -82,14 +103,26 @@ function Add-RegItem {
         }
         
         if ($MainMenuSwitch) {
+            Write-Verbose "Add-RegItem: Processing MainMenuSwitch"
             if ( -not (Test-Path $MainMenuLabel_Path) ) {
+                Write-Verbose "Add-RegItem: Creating MainMenuLabel_Path = $MainMenuLabel_Path"
                 New-Item -Path $Shell_Registry_Key -Name $MainMenuLabel -Force | Out-Null
                 New-ItemProperty -Path $MainMenuLabel_Path -Name "subcommands" -PropertyType String | Out-Null
                 New-Item -Path $MainMenuLabel_Path -Name "Shell" -Force | Out-Null
-                New-ItemProperty -Path $MainMenuLabel_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -ErrorAction Stop | Out-Null
+                Write-Verbose "Add-RegItem: Setting icon property at $MainMenuLabel_Path with value $Global:Sandbox_Icon"
+                try {
+                    New-ItemProperty -Path $MainMenuLabel_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -ErrorAction Stop | Out-Null
+                    Write-Verbose "Add-RegItem: Successfully set icon property for main menu"
+                } catch {
+                    Write-Verbose "Add-RegItem: Failed to set icon property for main menu: $($_.Exception.Message)"
+                    throw
+                }
+            } else {
+                Write-Verbose "Add-RegItem: MainMenuLabel_Path already exists, skipping creation"
             }
             $Key_Label_Path = "$MainMenuLabel_Path\Shell\$Key_Label"
             $Command_Path = "$Key_Label_Path\Command"
+            Write-Verbose "Add-RegItem: Updated Key_Label_Path for MainMenuSwitch = $Key_Label_Path"
         }
 
         if (Test-Path -Path $Key_Label_Path) {
@@ -98,11 +131,21 @@ function Add-RegItem {
             return
         }
 
+        Write-Verbose "Add-RegItem: Creating registry key: $Key_Label_Path"
         New-Item -Path $Key_Label_Path -ErrorAction Stop | Out-Null
+        Write-Verbose "Add-RegItem: Creating command path: $Command_Path"
         New-Item -Path $Command_Path -ErrorAction Stop | Out-Null
         if (-not $MainMenuSwitch) {
-            New-ItemProperty -Path $Key_Label_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -ErrorAction Stop | Out-Null
+            Write-Verbose "Add-RegItem: Setting icon property at $Key_Label_Path with value $Global:Sandbox_Icon"
+            try {
+                New-ItemProperty -Path $Key_Label_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -ErrorAction Stop | Out-Null
+                Write-Verbose "Add-RegItem: Successfully set icon property"
+            } catch {
+                Write-Verbose "Add-RegItem: Failed to set icon property: $($_.Exception.Message)"
+                throw
+            }
         }
+        Write-Verbose "Add-RegItem: Setting command value at $Command_Path"
         Set-Item -Path $Command_Path -Value $Command_for -Force -ErrorAction Stop | Out-Null
 
         Add-Content -Path $RegistryPathsFile -Value $Key_Label_Path
@@ -125,36 +168,62 @@ function Remove-RegItem {
         [string] $MainMenuLabel,
         [switch] $MainMenuSwitch
     )
+    
+    # Verbose logging for debugging
+    Write-Verbose "Remove-RegItem: Starting registry item removal"
+    Write-Verbose "Remove-RegItem: Type = $Type, Entry_Name = $Entry_Name"
+    Write-Verbose "Remove-RegItem: Reg_Path = $Reg_Path"
+    Write-Verbose "Remove-RegItem: Sub_Reg_Path = $Sub_Reg_Path"
+    Write-Verbose "Remove-RegItem: Key_Label = $Key_Label"
+    Write-Verbose "Remove-RegItem: MainMenuSwitch = $MainMenuSwitch"
+    Write-Verbose "Remove-RegItem: Global:DeepClean = $Global:DeepClean"
+    
     Write-LogMessage -Message_Type "INFO" -Message "Removing context menu for $Type"
     $Base_Registry_Key = "$Reg_Path\$Sub_Reg_Path"
     $Shell_Registry_Key = "$Base_Registry_Key\Shell"
     $Key_Label_Path = "$Shell_Registry_Key\$Key_Label"
     
+    Write-Verbose "Remove-RegItem: Base_Registry_Key = $Base_Registry_Key"
+    Write-Verbose "Remove-RegItem: Shell_Registry_Key = $Shell_Registry_Key"
+    Write-Verbose "Remove-RegItem: Key_Label_Path = $Key_Label_Path"
     
     if (-not (Test-Path -Path $Key_Label_Path) ) {
+        Write-Verbose "Remove-RegItem: Registry path does not exist: $Key_Label_Path"
         if ($Global:DeepClean) {
+            Write-Verbose "Remove-RegItem: DeepClean mode enabled, path already removed"
             Write-LogMessage -Message_Type "INFO" -Message "Registry Path for $Type has already been removed by deepclean"
             return
         }
+        Write-Verbose "Remove-RegItem: Path not found and DeepClean is not enabled"
         Write-LogMessage -Message_Type "WARNING" -Message "Could not find path for $Type"
         return
     }
     
+    Write-Verbose "Remove-RegItem: Registry path exists, proceeding with removal"
+    
     try {
         # Get all child items and sort by depth (deepest first)
+        Write-Verbose "Remove-RegItem: Getting child items for recursive removal"
         $ChildItems = Get-ChildItem -Path $Key_Label_Path -Recurse | Sort-Object { $_.PSPath.Split('\').Count } -Descending
+        Write-Verbose "Remove-RegItem: Found $($ChildItems.Count) child items to remove"
 
         foreach ($ChildItem in $ChildItems) {
+            Write-Verbose "Remove-RegItem: Removing child item: $($ChildItem.PSPath)"
             Remove-Item -LiteralPath $ChildItem.PSPath -Force -ErrorAction Stop
         }
 
         # Remove the main registry path if it still exists
         if (Test-Path -Path $Key_Label_Path) {
+            Write-Verbose "Remove-RegItem: Removing main registry path: $Key_Label_Path"
             Remove-Item -LiteralPath $Key_Label_Path -Force -ErrorAction Stop
+        } else {
+            Write-Verbose "Remove-RegItem: Main registry path already removed"
         }
         
+        Write-Verbose "Remove-RegItem: Successfully removed registry items"
         Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for `"$Info_Type`" has been removed"
     } catch {
+        Write-Verbose "Remove-RegItem: Failed to remove registry items: $($_.Exception.Message)"
         Write-LogMessage -Message_Type "ERROR" -Message "Context menu for $Type couldn´t be removed"
     }
 }
@@ -165,31 +234,61 @@ function Find-RegistryIconPaths {
         [string]$iconValueToMatch = "C:\\ProgramData\\Run_in_Sandbox\\sandbox.ico"
     )
 
+    Write-Verbose "Find-RegistryIconPaths: Starting search in $rootRegistryPath"
+    Write-Verbose "Find-RegistryIconPaths: Looking for icon value: $iconValueToMatch"
+
     # Export the registry at the specified rootRegistryPath
-    $exportPath = "$env:TEMP\registry_export.reg"
-    reg export $rootRegistryPath $exportPath /y > $null 2>&1
+    $exportPath = "$env:TEMP\registry_export_$($rootRegistryPath.Replace('\', '_').Replace(':', '')).reg"
+    Write-Verbose "Find-RegistryIconPaths: Exporting registry to $exportPath"
+    
+    try {
+        reg export $rootRegistryPath $exportPath /y > $null 2>&1
+        Write-Verbose "Find-RegistryIconPaths: Registry export completed successfully"
+    } catch {
+        Write-Verbose "Find-RegistryIconPaths: Registry export failed: $($_.Exception.Message)"
+        return @()
+    }
 
     # Initialize an empty array to store matching paths
     $matchingPaths = @()
 
     # Read the exported registry file
-    $lines = Get-Content -Path $exportPath
+    try {
+        $lines = Get-Content -Path $exportPath
+        Write-Verbose "Find-RegistryIconPaths: Read $($lines.Count) lines from export file"
+    } catch {
+        Write-Verbose "Find-RegistryIconPaths: Failed to read export file: $($_.Exception.Message)"
+        return @()
+    }
 
     # Process each line in the exported registry file
+    $currentPath = $null
     foreach ($line in $lines) {
         # Check if the line defines a new key
         if ($line -match '^\[([^\]]+)\]$') {
             $currentPath = $matches[1]
+            Write-Verbose "Find-RegistryIconPaths: Found registry key: $currentPath"
         }
 
         # If the line contains the icon value, add the current path to the list
-        # If the line contains the icon value, add the current path to the list
         if ($line -match '^\s*\"Icon\"=\"([^\"]+)\"$' -and $matches[1] -eq $iconValueToMatch) {
-            $currentPath = "REGISTRY::$currentPath"
-            $matchingPaths += $currentPath
+            $registryPath = "REGISTRY::$currentPath"
+            $matchingPaths += $registryPath
+            Write-Verbose "Find-RegistryIconPaths: Found matching icon at: $registryPath"
         }
     }
+    
+    Write-Verbose "Find-RegistryIconPaths: Found $($matchingPaths.Count) total matching paths"
     $matchingPaths = $matchingPaths | Sort-Object
+    
+    # Clean up temporary file
+    try {
+        Remove-Item $exportPath -Force -ErrorAction SilentlyContinue
+        Write-Verbose "Find-RegistryIconPaths: Cleaned up temporary export file"
+    } catch {
+        Write-Verbose "Find-RegistryIconPaths: Failed to clean up temporary file: $($_.Exception.Message)"
+    }
+    
     return $matchingPaths
 }
 

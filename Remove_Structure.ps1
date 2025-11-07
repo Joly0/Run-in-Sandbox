@@ -25,28 +25,58 @@ if ($DeepClean) {
     $Global:DeepClean = $true
     
     Write-LogMessage -Message_Type "INFO" -Message "Script has been started with deep cleaning enabled. This might take a moment"
+    Write-Verbose "Remove_Structure: DeepClean mode enabled, starting registry cleanup"
+    
     [String[]] $results = @()
-    $results = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT'
-    $results += Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT\SystemFileAssociations'
-    $results += Find-RegistryIconPaths -rootRegistryPath $HKCU_Classes
+    Write-Verbose "Remove_Structure: Searching HKEY_CLASSES_ROOT for registry icon paths"
+    $hklmResults = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT'
+    Write-Verbose "Remove_Structure: Found $($hklmResults.Count) paths in HKEY_CLASSES_ROOT"
+    $results += $hklmResults
+    
+    Write-Verbose "Remove_Structure: Searching HKEY_CLASSES_ROOT\SystemFileAssociations for registry icon paths"
+    $sfaResults = Find-RegistryIconPaths -rootRegistryPath 'HKEY_CLASSES_ROOT\SystemFileAssociations'
+    Write-Verbose "Remove_Structure: Found $($sfaResults.Count) paths in SystemFileAssociations"
+    $results += $sfaResults
+    
+    Write-Verbose "Remove_Structure: Searching $HKCU_Classes for registry icon paths"
+    $hkcuResults = Find-RegistryIconPaths -rootRegistryPath $HKCU_Classes
+    Write-Verbose "Remove_Structure: Found $($hkcuResults.Count) paths in HKCU_Classes"
+    $results += $hkcuResults
+    
+    Write-Verbose "Remove_Structure: Total paths found before filtering: $($results.Count)"
     # Only filter out the duplicate SystemFileAssociations\SystemFileAssociations entries, keep valid SystemFileAssociations entries
     $results = $results | Where-Object { $_ -notlike "REGISTRY::HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
+    Write-Verbose "Remove_Structure: Filtering out SystemFileAssociations\SystemFileAssociations duplicates"
     $results = $results | Select-Object -Unique | Sort-Object
+    Write-Verbose "Remove_Structure: Final count of unique paths to remove: $($results.Count)"
     
     foreach ($reg_path in $results) {
+        Write-Verbose "Remove_Structure: Processing registry path: $reg_path"
         try {
             # Get all child items and sort by depth (deepest first)
-            Get-ChildItem -Path $reg_path -Recurse | Sort-Object { $_.PSPath.Split('\').Count } -Descending | Select-Object -Property PSPath -ExpandProperty PSPath | Remove-Item -Force -Confirm:$false -ErrorAction Stop
+            Write-Verbose "Remove_Structure: Getting child items for recursive removal"
+            $childItems = Get-ChildItem -Path $reg_path -Recurse | Sort-Object { $_.PSPath.Split('\').Count } -Descending | Select-Object -Property PSPath -ExpandProperty PSPath
+            Write-Verbose "Remove_Structure: Found $($childItems.Count) child items to remove from $reg_path"
+            
+            if ($childItems.Count -gt 0) {
+                $childItems | Remove-Item -Force -Confirm:$false -ErrorAction Stop
+                Write-Verbose "Remove_Structure: Removed all child items from $reg_path"
+            }
 
             # Remove the main registry path if it still exists
             if (Test-Path -Path $reg_path) {
+                Write-Verbose "Remove_Structure: Removing main registry path: $reg_path"
                 Remove-Item -LiteralPath $reg_path -Force -Recurse -Confirm:$false -ErrorAction Stop
+                Write-Verbose "Remove_Structure: Successfully removed main registry path"
+            } else {
+                Write-Verbose "Remove_Structure: Registry path already removed: $reg_path"
             }
 
             Write-LogMessage -Message_Type "SUCCESS" -Message "Path: `"$reg_path`" has been removed"
         } catch {
+            Write-Verbose "Remove_Structure: Failed to remove registry path: $reg_path - Error: $($_.Exception.Message)"
             Write-LogMessage -Message_Type "ERROR" -Message "Path: `"$reg_path`" couldn´t be removed"
-        } 
+        }
     }
     Write-LogMessage -Message_Type "INFO" -Message "Deep cleaning finished"
 }
