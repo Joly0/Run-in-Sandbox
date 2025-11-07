@@ -72,7 +72,11 @@ function Invoke-AsAdmin {
     if ($EffectiveBranch) {
         $argsList += @("-Branch", $EffectiveBranch)
     }
-    if ($Verbose)      { $argsList += "-Verbose" }
+
+    if ($PSCmdlet.MyInvocation.BoundParameters.ContainsKey('Verbose')) {
+        $argsList += "-Verbose"
+        Write-Verbose "Caller supplied -Verbose; forwarding to elevated process."
+    }
 
     Write-Verbose ("Elevation command: powershell.exe " + ($argsList -join " "))
 
