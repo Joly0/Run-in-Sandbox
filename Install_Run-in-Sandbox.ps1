@@ -4,7 +4,7 @@ param (
     [switch]$NoCheckpoint,
     [switch]$DeepClean,
     [switch]$AutoUpdate,
-    [string]$Branch = ""
+    [string]$Branch = "master"
 )
 
 # ======================================================================================
@@ -18,7 +18,7 @@ param (
 # Configuration
 $RepoOwner = "Joly0"
 $RepoName = "Run-in-Sandbox"
-$DefaultBranch = "master"
+$DefaultBranch = $Branch
 
 # Globals
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
@@ -28,11 +28,11 @@ $IsInstalled = Test-Path $Run_in_Sandbox_Folder
 function Import-ModuleFromGitHub {
     param(
         [string]$ModulePath,
-        [string]$Branch = $DefaultBranch,
+        [string]$function:Branch = $DefaultBranch,
         [string]$function:RepoOwner = $script:RepoOwner
     )
     
-    $moduleUrl = "https://raw.githubusercontent.com/$function:RepoOwner/$RepoName/$Branch/$ModulePath"
+    $moduleUrl = "https://raw.githubusercontent.com/$function:RepoOwner/$RepoName/$function:Branch/$ModulePath"
     try {
         Write-Verbose "Loading module from: $moduleUrl"
         $moduleContent = Invoke-RestMethod -Uri $moduleUrl -UseBasicParsing -TimeoutSec 30
