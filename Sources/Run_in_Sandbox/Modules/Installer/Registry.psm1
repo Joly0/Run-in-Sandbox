@@ -8,7 +8,9 @@
 #>
 
 # Import Environment module to access $Sandbox_Icon variable
-Import-Module "$PSScriptRoot\Shared\Environment.psm1" -Force
+If (Test-Path -LiteralPath "$PSScriptRoot\..\Shared\Environment.psm1") {
+    Import-Module "$PSScriptRoot\..\Shared\Environment.psm1" -Force
+}
 
 # Function to export registry configuration
 function Export-RegConfig {
