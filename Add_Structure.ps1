@@ -5,6 +5,8 @@ param (
 
 $Current_Folder = $PSScriptRoot
 
+Write-Host "Extracted Path is $Current_Folder"
+
 Unblock-File -Path $Current_Folder\CommonFunctions.ps1
 . "$Current_Folder\CommonFunctions.ps1"
 

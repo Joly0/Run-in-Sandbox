@@ -112,11 +112,14 @@ function Download-And-Extract {
 
     try { Remove-Item -Path $zipPath -Force -ErrorAction SilentlyContinue } catch {}
 
+    # The extracted structure is: Run-in-Sandbox-branch/Sources/Run_in_Sandbox/
+    # We need to return the path to the extracted folder (which contains the Sources folder)
     return $extractPath
 }
 
 function Get-DefaultStartupScriptNames {
     param([string]$ExtractPath)
+    # The extracted structure is: ExtractPath/Sources/Run_in_Sandbox/startup-scripts
     $defaultStartupDir = Join-Path $ExtractPath "Sources\Run_in_Sandbox\startup-scripts"
     if (Test-Path $defaultStartupDir) {
         return (Get-ChildItem -Path $defaultStartupDir -File | Select-Object -ExpandProperty Name)
@@ -179,6 +182,7 @@ function Sync-CoreFiles {
         [string[]]$DefaultNames
     )
     # Copy core root-level files if present in the extracted package
+    # These files are in the root of the extracted folder (e.g., Run-in-Sandbox-master/)
     $rootFiles = @(
         "CommonFunctions.ps1",
         "version.json"
@@ -188,14 +192,20 @@ function Sync-CoreFiles {
         $sourceFile = Join-Path $ExtractPath $fileName
         if (Test-Path $sourceFile) {
             Copy-Item $sourceFile (Join-Path $RunFolder $fileName) -Force
+            Write-Verbose "Copied $fileName from root of extracted package"
         }
     }
     
     # Copy Sources except startup-scripts (handled separately below)
+    # The extracted structure is: ExtractPath/Sources/Run_in_Sandbox/
     $sourceSandboxDir = Join-Path $ExtractPath "Sources\Run_in_Sandbox"
     # After installation, files are directly in $RunFolder, not in a subfolder
     $destSandboxDir   = $RunFolder
+    
+    Write-Verbose "Looking for Sources in: $sourceSandboxDir"
+    
     if (Test-Path $sourceSandboxDir) {
+        Write-Verbose "Found Sources folder, syncing contents..."
         Get-ChildItem -Path $sourceSandboxDir | Where-Object { $_.Name -notin @("startup-scripts", "Sandbox_Config.xml") } | ForEach-Object {
             $destPath = Join-Path $destSandboxDir $_.Name
             if ($_.PSIsContainer) {
@@ -244,6 +254,8 @@ function Sync-CoreFiles {
                 }
             }
         }
+    } else {
+        Write-Verbose "Sources folder not found at expected location: $sourceSandboxDir"
     }
 }
 
@@ -269,6 +281,25 @@ function Run-AddStructure {
         Write-Info "Updating Run-in-Sandbox..." ([ConsoleColor]::Cyan)
     } else {
         Write-Info "Installing Run-in-Sandbox..." ([ConsoleColor]::Cyan)
+    }
+
+    # For new installations, we need to copy the Sources folder to ProgramData first
+    # The Add_Structure.ps1 script expects Sources to be in the same directory as the script
+    $sourcesPath = Join-Path $ExtractPath "Sources"
+    if (-not $IsInstalled -and (Test-Path $sourcesPath)) {
+        Write-Verbose "Copying Sources folder to ProgramData for initial installation..."
+        try {
+            # Ensure the Run_in_Sandbox folder exists
+            if (-not (Test-Path $Run_in_Sandbox_Folder)) {
+                New-Item -Path $Run_in_Sandbox_Folder -ItemType Directory -Force | Out-Null
+            }
+            
+            # Copy the Sources folder to ProgramData
+            Copy-Item -Path $sourcesPath -Destination $env:ProgramData -Force -Recurse
+            Write-Verbose "Sources folder copied to ProgramData"
+        } catch {
+            Write-Verbose "Failed to copy Sources folder: $($_.Exception.Message)"
+        }
     }
 
     Push-Location $ExtractPath

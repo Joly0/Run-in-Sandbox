@@ -16,6 +16,23 @@ function Validate-Installation {
         (Join-Path $RunFolder "Sandbox_Config.xml"),
         (Join-Path $RunFolder "version.json")
     )
+    
+    # Check for the Modules folder structure
+    $RequiredFolders = @(
+        (Join-Path $RunFolder "Modules"),
+        (Join-Path $RunFolder "Modules\Shared"),
+        (Join-Path $RunFolder "Modules\Installer"),
+        (Join-Path $RunFolder "Modules\Runtime"),
+        (Join-Path $RunFolder "startup-scripts")
+    )
+    
+    # Check for key module files
+    $RequiredModuleFiles = @(
+        (Join-Path $RunFolder "Modules\Shared\Logging.psm1"),
+        (Join-Path $RunFolder "Modules\Shared\Config.psm1"),
+        (Join-Path $RunFolder "Modules\Installer\Core.psm1"),
+        (Join-Path $RunFolder "Modules\Runtime\Dialogs.psm1")
+    )
 
     $ok = $true
     foreach ($f in $RequiredFiles) {
@@ -24,6 +41,21 @@ function Validate-Installation {
             $ok = $false
         }
     }
+    
+    foreach ($folder in $RequiredFolders) {
+        if (-not (Test-Path $folder)) {
+            Write-Info "Validation failed: Missing folder $folder" ([ConsoleColor]::Red)
+            $ok = $false
+        }
+    }
+    
+    foreach ($f in $RequiredModuleFiles) {
+        if (-not (Test-Path $f)) {
+            Write-Info "Validation failed: Missing module file $f" ([ConsoleColor]::Red)
+            $ok = $false
+        }
+    }
+    
     return $ok
 }
 
