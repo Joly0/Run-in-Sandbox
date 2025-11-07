@@ -7,8 +7,21 @@ $Current_Folder = $PSScriptRoot
 
 Write-Host "Extracted Path is $Current_Folder"
 
-Unblock-File -Path $Current_Folder\CommonFunctions.ps1
-. "$Current_Folder\CommonFunctions.ps1"
+# Try to find and load CommonFunctions.ps1 from different possible locations
+$commonFunctionsPath = $null
+if (Test-Path -Path "$Current_Folder\CommonFunctions.ps1") {
+    $commonFunctionsPath = "$Current_Folder\CommonFunctions.ps1"
+} elseif (Test-Path -Path "CommonFunctions.ps1") {
+    $commonFunctionsPath = "CommonFunctions.ps1"
+}
+
+if (-not $commonFunctionsPath) {
+    Write-Host "ERROR: CommonFunctions.ps1 not found"
+    exit 1
+}
+
+Unblock-File -Path $commonFunctionsPath
+. $commonFunctionsPath
 
 
 if (Test-Path -Path $Log_File) {
@@ -54,7 +67,21 @@ Write-LogMessage -Message_Type "SUCCESS" -Message "Version file created"
 
 
 if ($NoSilent) {
-    powershell -NoProfile $Current_Folder\Sources\Run_in_Sandbox\RunInSandbox_Config.ps1
+    # Try to find RunInSandbox_Config.ps1 in different possible locations
+    $configScriptPath = $null
+    if (Test-Path -Path "$Current_Folder\Sources\Run_in_Sandbox\RunInSandbox_Config.ps1") {
+        $configScriptPath = "$Current_Folder\Sources\Run_in_Sandbox\RunInSandbox_Config.ps1"
+    } elseif (Test-Path -Path "Sources\Run_in_Sandbox\RunInSandbox_Config.ps1") {
+        $configScriptPath = "Sources\Run_in_Sandbox\RunInSandbox_Config.ps1"
+    } elseif (Test-Path -Path "$env:ProgramData\Run_in_Sandbox\RunInSandbox_Config.ps1") {
+        $configScriptPath = "$env:ProgramData\Run_in_Sandbox\RunInSandbox_Config.ps1"
+    }
+    
+    if ($configScriptPath) {
+        powershell -NoProfile $configScriptPath
+    } else {
+        Write-LogMessage -Message_Type "WARNING" -Message "RunInSandbox_Config.ps1 not found, skipping configuration"
+    }
 }
 
 

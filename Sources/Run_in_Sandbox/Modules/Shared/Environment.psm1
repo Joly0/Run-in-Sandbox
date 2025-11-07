@@ -95,17 +95,46 @@ function Test-ForAdmin {
 }
 
 function Test-ForSources {
-    if (-not (Test-Path -Path $Sources)) {
+    # Check if Sources folder exists in the expected location
+    # When running from installer, the Sources folder might be in a different location
+    $sourcesPath = $null
+    
+    # First check the standard location (when running from source)
+    if (Test-Path -Path $Sources) {
+        $sourcesPath = $Sources.Replace("\*", "")
+    }
+    # Then check if Sources is in the parent folder (when running from extracted installer)
+    elseif (Test-Path -Path "$Current_Folder\Sources") {
+        $sourcesPath = "$Current_Folder\Sources"
+    }
+    # Finally check if Sources is in the current folder (when running from installer root)
+    elseif (Test-Path -Path "Sources") {
+        $sourcesPath = "Sources"
+    }
+    
+    if (-not $sourcesPath) {
         Write-LogMessage -Message_Type "ERROR" -Message "Sources folder is missing"
-        Write-LogMessage -Message_Type "ERROR" -Message "Check files in the folder $Sources"
+        Write-LogMessage -Message_Type "ERROR" -Message "Check files in the folder \Sources\*"
         [System.Windows.Forms.MessageBox]::Show("It seems you haven´t downloaded all the folder structure.`nThe folder `"Sources`" is missing !!!")
         EXIT
     }
-    Write-LogMessage -Message_Type "SUCCESS" -Message "The sources folder exists"
     
-    $Check_Sources_Files_Count = (Get-ChildItem -Path "$Current_Folder\Sources\Run_in_Sandbox" -Recurse).count
-    if ($Check_Sources_Files_Count -lt 25) {
-        Write-LogMessage -Message_Type "ERROR" -Message "Some contents are missing"
+    Write-LogMessage -Message_Type "SUCCESS" -Message "The sources folder exists at: $sourcesPath"
+    
+    # Update the global Sources variable to point to the correct location
+    $script:Sources = "$sourcesPath\*"
+    
+    # Check if the Sources folder has the expected content
+    $runInSandboxPath = Join-Path $sourcesPath "Run_in_Sandbox"
+    if (Test-Path -Path $runInSandboxPath) {
+        $Check_Sources_Files_Count = (Get-ChildItem -Path $runInSandboxPath -Recurse).count
+        if ($Check_Sources_Files_Count -lt 25) {
+            Write-LogMessage -Message_Type "ERROR" -Message "Some contents are missing"
+            [System.Windows.Forms.MessageBox]::Show("It seems you haven´t downloaded all the folder structure !!!")
+            EXIT
+        }
+    } else {
+        Write-LogMessage -Message_Type "ERROR" -Message "Run_in_Sandbox folder not found in Sources"
         [System.Windows.Forms.MessageBox]::Show("It seems you haven´t downloaded all the folder structure !!!")
         EXIT
     }
@@ -142,6 +171,7 @@ function Test-ForSandboxFolder {
 
 function Copy-Sources {
     try {
+        # Use the Sources variable that was updated in Test-ForSources
         Copy-Item -Path $Sources -Destination $env:ProgramData -Force -Recurse | Out-Null
         Write-LogMessage -Message_Type "SUCCESS" -Message "Sources have been copied in $env:ProgramData\Run_in_Sandbox"
     } catch {
@@ -151,8 +181,20 @@ function Copy-Sources {
     
     # Copy CommonFunctions.ps1 to the installation directory so RunInSandbox.ps1 can load it
     try {
-        Copy-Item -Path "$Current_Folder\CommonFunctions.ps1" -Destination "$env:ProgramData\Run_in_Sandbox\" -Force | Out-Null
-        Write-LogMessage -Message_Type "SUCCESS" -Message "CommonFunctions.ps1 copied to installation directory"
+        # Try to find CommonFunctions.ps1 in different possible locations
+        $commonFunctionsSource = $null
+        if (Test-Path -Path "$Current_Folder\CommonFunctions.ps1") {
+            $commonFunctionsSource = "$Current_Folder\CommonFunctions.ps1"
+        } elseif (Test-Path -Path "CommonFunctions.ps1") {
+            $commonFunctionsSource = "CommonFunctions.ps1"
+        }
+        
+        if ($commonFunctionsSource) {
+            Copy-Item -Path $commonFunctionsSource -Destination "$env:ProgramData\Run_in_Sandbox\" -Force | Out-Null
+            Write-LogMessage -Message_Type "SUCCESS" -Message "CommonFunctions.ps1 copied to installation directory"
+        } else {
+            Write-LogMessage -Message_Type "WARNING" -Message "CommonFunctions.ps1 not found, skipping copy"
+        }
     } catch {
         Write-LogMessage -Message_Type "ERROR" -Message "Failed to copy CommonFunctions.ps1 to installation directory"
         EXIT
