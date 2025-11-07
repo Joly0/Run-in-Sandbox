@@ -6,6 +6,7 @@
     This module provides registry management functionality for the Run-in-Sandbox application.
     It handles reading, writing, and validating registry entries for installation.
 #>
+[CmdletBinding()] param()
 
 # Import Environment module to access $Sandbox_Icon variable
 If (Test-Path -LiteralPath "$PSScriptRoot\..\Shared\Environment.psm1") {

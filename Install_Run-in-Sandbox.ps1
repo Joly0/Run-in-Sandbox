@@ -100,7 +100,7 @@ if (-not $moduleLoadSuccess) {
 $Branch = Resolve-Branch -Requested $Branch -Installed:$IsInstalled
 Write-Verbose "Effective branch: $Branch"
 
-Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate -Verbose:$Verbose
+Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate -Verbose:$VerbosePreference
 
 # -------------------------------------------------------------------------------------------------
 # Show minimal banner if not AutoUpdate
@@ -199,7 +199,7 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 }
 
 try {
-    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled -Verbose:$Verbose
+    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled -Verbose:$VerbosePreference
     Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder
     
     # Only sync files for updates, not for new installations

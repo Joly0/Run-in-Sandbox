@@ -9,6 +9,8 @@
 #>
 
 # Global variables
+[CmdletBinding()] param()
+
 $Global:Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $Global:Windows_Version = (Get-CimInstance -class Win32_OperatingSystem).Caption
 $Global:CurrentSid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value

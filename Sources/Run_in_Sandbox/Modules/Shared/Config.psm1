@@ -8,6 +8,8 @@
 #>
 
 # Global variables
+[CmdletBinding()] param()
+
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $XML_Config = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
 

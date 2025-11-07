@@ -6,6 +6,7 @@
     This module provides core installation functionality for the Run-in-Sandbox application.
     It handles the main installation process and coordination of installation steps.
 #>
+[CmdletBinding()] param()
 
 function Get-DeepCleanConsent {
     param([switch]$AutoUpdate, [switch]$DeepCleanRef)
@@ -346,9 +347,9 @@ function Invoke-AddStructure {
     Push-Location $ExtractPath
     try {
         if ($NoCheckpoint) {
-            & ".\Add_Structure.ps1" -NoCheckpoint -Verbose:$Verbose
+            & ".\Add_Structure.ps1" -NoCheckpoint -Verbose:$VerbosePreference
         } else {
-            & ".\Add_Structure.ps1" -Verbose:$Verbose
+            & ".\Add_Structure.ps1" -Verbose:$VerbosePreference
         }
     } finally {
         Pop-Location
