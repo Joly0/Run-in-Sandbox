@@ -7,6 +7,12 @@ param (
     [string]$Branch = "master"
 )
 
+if ($VerbosePreference -eq 'Continue') {
+    $PSDefaultParameterValues['*:Verbose'] = $true
+} else {
+    $PSDefaultParameterValues.Remove('*:Verbose') | Out-Null
+}
+
 # ======================================================================================
 # Minimal, maintainable installer with functions and optional verbose logging
 # - Keep functionality intact
@@ -100,7 +106,7 @@ if (-not $moduleLoadSuccess) {
 $Branch = Resolve-Branch -Requested $Branch -Installed:$IsInstalled
 Write-Verbose "Effective branch: $Branch"
 
-Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate -Verbose:$VerbosePreference
+Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -AutoUpdate:$AutoUpdate
 
 # -------------------------------------------------------------------------------------------------
 # Show minimal banner if not AutoUpdate
@@ -163,8 +169,8 @@ if ($IsInstalled) {
     }
 
     # Optional DeepClean prompt (only interactive)
-    $DeepClean = Get-DeepCleanConsent -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean -Verbose:$VerbosePreference
-    Invoke-DeepCleanIfRequested -DeepClean:$DeepClean -Verbose:$VerbosePreference
+    $DeepClean = Get-DeepCleanConsent -AutoUpdate:$AutoUpdate -DeepCleanRef:$DeepClean
+    Invoke-DeepCleanIfRequested -DeepClean:$DeepClean
 
     if (-not $AutoUpdate) {
         Write-Host ""
@@ -189,7 +195,7 @@ try {
 
 # Preserve config for merge (if update)
 $DefaultStartupNames = Get-DefaultStartupScriptNames -ExtractPath $extractPath
-Remove-OldInstallIfDeepClean -DeepClean:$DeepClean -RunFolder:$Run_in_Sandbox_Folder -DefaultNames $DefaultStartupNames -Verbose:$VerbosePreference
+Remove-OldInstallIfDeepClean -DeepClean:$DeepClean -RunFolder:$Run_in_Sandbox_Folder -DefaultNames $DefaultStartupNames
 # If we performed a deep-clean, treat this run as a fresh install for the rest of the flow
 if ($DeepClean) { $IsInstalled = $false }
 $ConfigBackup = $null
@@ -199,8 +205,8 @@ if ($IsInstalled -and (Test-Path "$Run_in_Sandbox_Folder\Sandbox_Config.xml")) {
 }
 
 try {
-    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled -Verbose:$VerbosePreference -Verbose:$VerbosePreference
-    Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder -Verbose:$VerbosePreference
+    Invoke-AddStructure -ExtractPath $extractPath -NoCheckpoint:$NoCheckpoint -IsInstalled:$IsInstalled
+    Merge-ConfigIfNeeded -IsInstalled:$IsInstalled -RunFolder:$Run_in_Sandbox_Folder
     
     # Only sync files for updates, not for new installations
     if ($IsInstalled) {
