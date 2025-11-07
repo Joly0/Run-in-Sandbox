@@ -12,7 +12,7 @@ function Get-DeepCleanConsent {
     if ($AutoUpdate) { return $DeepCleanRef }
 
     if (-not $DeepCleanRef) {
-        Write-Info "Deep-Clean removes legacy registry icon path entries for a fully clean install." ([ConsoleColor]::Cyan)
+        Write-Info "Deep-Clean removes legacy registry icon path entries for a fully clean install (this will take a while; about 5-10 minutes is reasonable)." ([ConsoleColor]::Cyan)
         $deepCleanAnswer = Read-Host "Perform deep-clean before update? (Y/N)"
         if ($deepCleanAnswer -match '^(?i)y$') { return $true }
     }
