@@ -70,6 +70,7 @@ function Invoke-AsAdmin {
     if ($EffectiveBranch) {
         $argsList += @("-Branch", $EffectiveBranch)
     }
+    if ($Verbose)      { $argsList += "-Verbose" }
 
     Write-Verbose ("Elevation command: powershell.exe " + ($argsList -join " "))
 
