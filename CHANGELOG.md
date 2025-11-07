@@ -1,8 +1,13 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+
+## 2025-11-07
+### Changed
+- Small fixes for update mechanism
+- Completely restructured functions and code for better code readability
 
 
 ## 2025-10-21

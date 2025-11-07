@@ -1,5 +1,5 @@
-﻿<Configuration>
-	<CurrentVersion>2025-10-07</CurrentVersion> <!-- Current installed version of Run-in-Sandbox -->
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Configuration>
 	<VGpu>Enable</VGpu> <!-- Enable or disable the virtualized GPU. If vGPU is disabled, the sandbox will use Windows Advanced Rasterization Platform (WARP). -->
 	<Networking>Enable</Networking> <!-- Enable or disable network access within the sandbox. -->
 	<ReadOnlyAccess>true</ReadOnlyAccess> <!-- True or False. If true, enforces read-only access to the shared folder from within the container. Supported values: true/false. Defaults to false. -->
@@ -11,21 +11,21 @@
 	<PrinterRedirection>Default</PrinterRedirection> <!-- Enable, disable or Default. Shares printers from the host into the sandbox. -->
 	<ClipboardRedirection>Default</ClipboardRedirection> <!-- Enable, disable or Default. Shares the host clipboard with the sandbox so that text and files can be pasted back and forth. -->
 	<MemoryInMB></MemoryInMB> <!-- The amount of memory, in megabytes, to assign to the sandbox. -->
-	<ContextMenu_EXE>True</ContextMenu_EXE> <!-- Choose to add or not context menu to run EXE in Sandbox. True or False -->
-	<ContextMenu_MSI>True</ContextMenu_MSI> <!-- Choose to add or not context menu to run MSI in Sandbox. True or False -->
-	<ContextMenu_PS1>True</ContextMenu_PS1> <!-- Choose to add or not context menu to run PS1 in Sandbox. True or False -->
-	<ContextMenu_VBS>True</ContextMenu_VBS> <!-- Choose to add or not context menu to run VBS in Sandbox. True or False -->
-	<ContextMenu_ZIP>True</ContextMenu_ZIP> <!-- Choose to add or not context menu to extract ZIP in Sandbox. True or False -->
-	<ContextMenu_Folder>True</ContextMenu_Folder> <!-- Choose to add or not context menu to share folder content in Sandbox. True or False -->
-	<ContextMenu_Intunewin>True</ContextMenu_Intunewin> <!-- Choose to add or not context menu to run Intunewin in Sandbox. True or False -->
-	<ContextMenu_MultipleApp>True</ContextMenu_MultipleApp> <!-- Choose to add or not context menu to run Intunewin in Sandbox. True or False -->
-	<ContextMenu_Reg>True</ContextMenu_Reg> <!-- Choose to add or not context menu to run Intunewin in Sandbox. True or False -->
-	<ContextMenu_ISO>True</ContextMenu_ISO> <!-- Choose to add or not context menu to extract ISO in Sandbox. True or False -->
-	<ContextMenu_PPKG>True</ContextMenu_PPKG> <!-- Choose to add or not context menu to run PPKG in Sandbox. True or False -->
-	<ContextMenu_HTML>True</ContextMenu_HTML> <!-- Choose to add or not context menu to run HTML in Sandbox. True or False -->
-	<ContextMenu_MSIX>True</ContextMenu_MSIX> <!-- Choose to add or not context menu to run HTML in Sandbox. True or False -->
-	<ContextMenu_CMD>True</ContextMenu_CMD> <!-- Choose to add or not context menu to run CMD in Sandbox. True or False -->
-	<ContextMenu_PDF>True</ContextMenu_PDF> <!-- Choose to add or not context menu to run PDF in Sandbox. True or False -->
-	<WSB_Cleanup>True</WSB_Cleanup> <!-- Choose to cleanup left-over files after sandbox has been closed. True or False -->
-	<Hide_Powershell>True</Hide_Powershell> <!-- Choose to hide all Powershell/Shell Windows that might be started. True or False -->
+	<ContextMenu_EXE>true</ContextMenu_EXE> <!-- Choose to add or not context menu to run EXE in Sandbox. True or False -->
+	<ContextMenu_MSI>true</ContextMenu_MSI> <!-- Choose to add or not context menu to run MSI in Sandbox. True or False -->
+	<ContextMenu_PS1>true</ContextMenu_PS1> <!-- Choose to add or not context menu to run PS1 in Sandbox. True or False -->
+	<ContextMenu_VBS>true</ContextMenu_VBS> <!-- Choose to add or not context menu to run VBS in Sandbox. True or False -->
+	<ContextMenu_ZIP>true</ContextMenu_ZIP> <!-- Choose to add or not context menu to extract ZIP in Sandbox. True or False -->
+	<ContextMenu_Folder>true</ContextMenu_Folder> <!-- Choose to add or not context menu to share folder content in Sandbox. True or False -->
+	<ContextMenu_Intunewin>true</ContextMenu_Intunewin> <!-- Choose to add or not context menu to run Intunewin in Sandbox. True or False -->
+	<ContextMenu_MultipleApp>true</ContextMenu_MultipleApp> <!-- Choose to add or not context menu to run Intunewin in Sandbox. True or False -->
+	<ContextMenu_Reg>true</ContextMenu_Reg> <!-- Choose to add or not context menu to run Intunewin in Sandbox. True or False -->
+	<ContextMenu_ISO>true</ContextMenu_ISO> <!-- Choose to add or not context menu to extract ISO in Sandbox. True or False -->
+	<ContextMenu_PPKG>true</ContextMenu_PPKG> <!-- Choose to add or not context menu to run PPKG in Sandbox. True or False -->
+	<ContextMenu_HTML>true</ContextMenu_HTML> <!-- Choose to add or not context menu to run HTML in Sandbox. True or False -->
+	<ContextMenu_MSIX>true</ContextMenu_MSIX> <!-- Choose to add or not context menu to run HTML in Sandbox. True or False -->
+	<ContextMenu_CMD>true</ContextMenu_CMD> <!-- Choose to add or not context menu to run CMD in Sandbox. True or False -->
+	<ContextMenu_PDF>true</ContextMenu_PDF> <!-- Choose to add or not context menu to run PDF in Sandbox. True or False -->
+	<WSB_Cleanup>true</WSB_Cleanup> <!-- Choose to cleanup left-over files after sandbox has been closed. True or False -->
+	<Hide_Powershell>true</Hide_Powershell> <!-- Choose to hide all Powershell/Shell Windows that might be started. True or False -->
 </Configuration>
