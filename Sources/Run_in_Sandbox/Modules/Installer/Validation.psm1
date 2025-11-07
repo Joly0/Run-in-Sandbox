@@ -7,7 +7,7 @@
     It handles validation of installation requirements, files, and system state.
 #>
 
-function Validate-Installation {
+function Test-Installation {
     param([string]$RunFolder)
 
     $RequiredFiles = @(
@@ -60,5 +60,5 @@ function Validate-Installation {
 }
 
 Export-ModuleMember -Function @(
-    'Validate-Installation'
+    'Test-Installation'
 )

@@ -7,7 +7,7 @@
     It handles the main installation process and coordination of installation steps.
 #>
 
-function Request-OptionalDeepClean {
+function Get-DeepCleanConsent {
     param([switch]$AutoUpdate, [switch]$DeepCleanRef)
     if ($AutoUpdate) { return $DeepCleanRef }
 
@@ -77,7 +77,7 @@ function Invoke-DeepCleanIfRequested {
     }
 }
 
-function Download-And-Extract {
+function Install-PackageArchive {
     param([string]$EffectiveBranch)
 
     $zipUrl = "https://github.com/Joly0/Run-in-Sandbox/archive/refs/heads/$EffectiveBranch.zip"
@@ -175,7 +175,7 @@ function Restore-CustomStartupScripts {
     }
 }
 
-function Sync-CoreFiles {
+function Update-CoreFiles {
     param(
         [string]$ExtractPath,
         [string]$RunFolder,
@@ -259,7 +259,7 @@ function Sync-CoreFiles {
     }
 }
 
-function Run-AddStructure {
+function Invoke-AddStructure {
     param(
         [string]$ExtractPath,
         [switch]$NoCheckpoint,
@@ -314,7 +314,7 @@ function Run-AddStructure {
     }
 }
 
-function Cleanup-Temp {
+function Clear-TempArtifacts {
     param([string]$ExtractPath, [string]$RunFolder)
 
     if (Test-Path $ExtractPath) {
@@ -326,15 +326,15 @@ function Cleanup-Temp {
 }
 
 Export-ModuleMember -Function @(
-    'Request-OptionalDeepClean',
+    'Get-DeepCleanConsent',
     'New-InstallBackup',
     'Invoke-DeepCleanIfRequested',
-    'Download-And-Extract',
+    'Install-PackageArchive',
     'Get-DefaultStartupScriptNames',
     'Backup-CustomStartupScripts',
     'Remove-OldInstallIfDeepClean',
     'Restore-CustomStartupScripts',
-    'Sync-CoreFiles',
-    'Run-AddStructure',
-    'Cleanup-Temp'
+    'Update-CoreFiles',
+    'Invoke-AddStructure',
+    'Clear-TempArtifacts'
 )

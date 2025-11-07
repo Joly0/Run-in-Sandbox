@@ -118,7 +118,7 @@ switch ($Type) {
         }
         else {
             # No host installation found, ensure we have a cached installer
-            if (-not (Ensure-7ZipCache)) {
+            if (-not (Initialize-7ZipCache)) {
                 [System.Windows.Forms.MessageBox]::Show("Failed to download 7-Zip installer and no cached version available.`nPlease check your internet connection.")
                 EXIT
             }
@@ -205,7 +205,7 @@ switch ($Type) {
         }
         else {
             # No host installation found, ensure we have a cached installer
-            if (-not (Ensure-7ZipCache)) {
+            if (-not (Initialize-7ZipCache)) {
                 [System.Windows.Forms.MessageBox]::Show("Failed to download 7-Zip installer and no cached version available.`nPlease check your internet connection.")
                 EXIT
             }

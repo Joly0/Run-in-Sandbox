@@ -8,7 +8,7 @@
 #>
 
 # Consolidated function to load XML documents
-function Load-XmlDocument {
+function Import-XmlDocument {
     param(
         [Parameter(Mandatory=$true)]
         [string]$Path
@@ -20,10 +20,10 @@ function Load-XmlDocument {
 }
 
 # Create alias for backward compatibility
-Set-Alias -Name LoadXml -Value Load-XmlDocument
+Set-Alias -Name LoadXml -Value Import-XmlDocument
 
 Export-ModuleMember -Function @(
-    'Load-XmlDocument'
+    'Import-XmlDocument'
 ) -Alias @(
     'LoadXml'
 )

@@ -136,7 +136,7 @@ function Update-7ZipCache {
 }
 
 # Function to ensure 7-Zip cache is available and current
-function Ensure-7ZipCache {
+function Initialize-7ZipCache {
     $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
     $TempFolder = "$Run_in_Sandbox_Folder\temp"
     $CachedInstaller = "$TempFolder\7zSetup.msi"
@@ -159,5 +159,5 @@ Export-ModuleMember -Function @(
     'Get-Latest7ZipDownloadUrl',
     'Test-7ZipCacheAge',
     'Update-7ZipCache',
-    'Ensure-7ZipCache'
+    'Initialize-7ZipCache'
 )
