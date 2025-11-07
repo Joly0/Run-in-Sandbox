@@ -20,21 +20,21 @@ function Get-Config {
     }
     $Get_XML_Content = [xml](Get-Content $XML_Config)
     
-    $Add_EXE = $Get_XML_Content.Configuration.ContextMenu_EXE
-    $Add_MSI = $Get_XML_Content.Configuration.ContextMenu_MSI
-    $Add_PS1 = $Get_XML_Content.Configuration.ContextMenu_PS1
+    $Global:Add_EXE = $Get_XML_Content.Configuration.ContextMenu_EXE
+    $Global:Add_MSI = $Get_XML_Content.Configuration.ContextMenu_MSI
+    $Global:Add_PS1 = $Get_XML_Content.Configuration.ContextMenu_PS1
     $Add_VBS = $Get_XML_Content.Configuration.ContextMenu_VBS
-    $Add_ZIP = $Get_XML_Content.Configuration.ContextMenu_ZIP
-    $Add_Folder = $Get_XML_Content.Configuration.ContextMenu_Folder
-    $Add_Intunewin = $Get_XML_Content.Configuration.ContextMenu_Intunewin
-    $Add_MultipleApp = $Get_XML_Content.Configuration.ContextMenu_MultipleApp
-    $Add_Reg = $Get_XML_Content.Configuration.ContextMenu_Reg
-    $Add_ISO = $Get_XML_Content.Configuration.ContextMenu_ISO
-    $Add_PPKG = $Get_XML_Content.Configuration.ContextMenu_PPKG
-    $Add_HTML = $Get_XML_Content.Configuration.ContextMenu_HTML
-    $Add_MSIX = $Get_XML_Content.Configuration.ContextMenu_MSIX
-    $Add_CMD = $Get_XML_Content.Configuration.ContextMenu_CMD
-    $Add_PDF = $Get_XML_Content.Configuration.ContextMenu_PDF
+    $Global:Add_ZIP = $Get_XML_Content.Configuration.ContextMenu_ZIP
+    $Global:Add_Folder = $Get_XML_Content.Configuration.ContextMenu_Folder
+    $Global:Add_Intunewin = $Get_XML_Content.Configuration.ContextMenu_Intunewin
+    $Global:Add_MultipleApp = $Get_XML_Content.Configuration.ContextMenu_MultipleApp
+    $Global:Add_Reg = $Get_XML_Content.Configuration.ContextMenu_Reg
+    $Global:Add_ISO = $Get_XML_Content.Configuration.ContextMenu_ISO
+    $Global:Add_PPKG = $Get_XML_Content.Configuration.ContextMenu_PPKG
+    $Global:Add_HTML = $Get_XML_Content.Configuration.ContextMenu_HTML
+    $Global:Add_MSIX = $Get_XML_Content.Configuration.ContextMenu_MSIX
+    $Global:Add_CMD = $Get_XML_Content.Configuration.ContextMenu_CMD
+    $Global:Add_PDF = $Get_XML_Content.Configuration.ContextMenu_PDF
 }
 
 # Merge user settings from old config into new config
