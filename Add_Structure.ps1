@@ -1,3 +1,4 @@
+[CmdletBinding()]
 param (
     [Switch]$NoSilent,
     [Switch]$NoCheckpoint

@@ -1,4 +1,5 @@
-﻿param (
+﻿[CmdletBinding()]
+param (
     [Parameter(Mandatory=$true)] [String]$Type,
     [Parameter(Mandatory=$true)] [String]$ScriptPath
 )

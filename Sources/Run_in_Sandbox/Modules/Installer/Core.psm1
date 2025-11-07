@@ -348,7 +348,7 @@ function Invoke-AddStructure {
         if ($NoCheckpoint) {
             & ".\Add_Structure.ps1" -NoCheckpoint -Verbose:$Verbose
         } else {
-            & ".\Add_Structure.ps1"
+            & ".\Add_Structure.ps1" -Verbose:$Verbose
         }
     } finally {
         Pop-Location
