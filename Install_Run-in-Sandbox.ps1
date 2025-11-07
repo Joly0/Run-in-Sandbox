@@ -287,5 +287,6 @@ try {
 
 Write-Host ""
 if (-not $AutoUpdate) {
+    $PSDefaultParameterValues.Remove('*:Verbose') | Out-Null
     Read-Host "Press Enter to exit"
 }
