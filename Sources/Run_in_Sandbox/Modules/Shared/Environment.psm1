@@ -114,7 +114,7 @@ function Test-ForSources {
     
     if (-not $sourcesPath) {
         Write-LogMessage -Message_Type "ERROR" -Message "Sources folder is missing"
-        Write-LogMessage -Message_Type "ERROR" -Message "Check files in the folder \Sources\*"
+        Write-LogMessage -Message_Type "ERROR" -Message "Check files in the folder $sourcesPath"
         [System.Windows.Forms.MessageBox]::Show("It seems you haven´t downloaded all the folder structure.`nThe folder `"Sources`" is missing !!!")
         EXIT
     }
