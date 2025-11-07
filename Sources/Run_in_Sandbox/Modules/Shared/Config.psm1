@@ -12,7 +12,6 @@ $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $XML_Config = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
 
 function Get-Config {
-    Write-Host "Reading file $XML_Config"
     if ( [string]::IsNullOrEmpty($XML_Config) ) {
         return
     }
@@ -21,21 +20,21 @@ function Get-Config {
     }
     $Get_XML_Content = [xml](Get-Content $XML_Config)
     
-    $script:Add_EXE = $Get_XML_Content.Configuration.ContextMenu_EXE
-    $script:Add_MSI = $Get_XML_Content.Configuration.ContextMenu_MSI
-    $script:Add_PS1 = $Get_XML_Content.Configuration.ContextMenu_PS1
-    $script:Add_VBS = $Get_XML_Content.Configuration.ContextMenu_VBS
-    $script:Add_ZIP = $Get_XML_Content.Configuration.ContextMenu_ZIP
-    $script:Add_Folder = $Get_XML_Content.Configuration.ContextMenu_Folder
-    $script:Add_Intunewin = $Get_XML_Content.Configuration.ContextMenu_Intunewin
-    $script:Add_MultipleApp = $Get_XML_Content.Configuration.ContextMenu_MultipleApp
-    $script:Add_Reg = $Get_XML_Content.Configuration.ContextMenu_Reg
-    $script:Add_ISO = $Get_XML_Content.Configuration.ContextMenu_ISO
-    $script:Add_PPKG = $Get_XML_Content.Configuration.ContextMenu_PPKG
-    $script:Add_HTML = $Get_XML_Content.Configuration.ContextMenu_HTML
-    $script:Add_MSIX = $Get_XML_Content.Configuration.ContextMenu_MSIX
-    $script:Add_CMD = $Get_XML_Content.Configuration.ContextMenu_CMD
-    $script:Add_PDF = $Get_XML_Content.Configuration.ContextMenu_PDF
+    $Add_EXE = $Get_XML_Content.Configuration.ContextMenu_EXE
+    $Add_MSI = $Get_XML_Content.Configuration.ContextMenu_MSI
+    $Add_PS1 = $Get_XML_Content.Configuration.ContextMenu_PS1
+    $Add_VBS = $Get_XML_Content.Configuration.ContextMenu_VBS
+    $Add_ZIP = $Get_XML_Content.Configuration.ContextMenu_ZIP
+    $Add_Folder = $Get_XML_Content.Configuration.ContextMenu_Folder
+    $Add_Intunewin = $Get_XML_Content.Configuration.ContextMenu_Intunewin
+    $Add_MultipleApp = $Get_XML_Content.Configuration.ContextMenu_MultipleApp
+    $Add_Reg = $Get_XML_Content.Configuration.ContextMenu_Reg
+    $Add_ISO = $Get_XML_Content.Configuration.ContextMenu_ISO
+    $Add_PPKG = $Get_XML_Content.Configuration.ContextMenu_PPKG
+    $Add_HTML = $Get_XML_Content.Configuration.ContextMenu_HTML
+    $Add_MSIX = $Get_XML_Content.Configuration.ContextMenu_MSIX
+    $Add_CMD = $Get_XML_Content.Configuration.ContextMenu_CMD
+    $Add_PDF = $Get_XML_Content.Configuration.ContextMenu_PDF
 }
 
 # Merge user settings from old config into new config
