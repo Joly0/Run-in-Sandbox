@@ -50,6 +50,79 @@ function Export-RegConfig {
     }
 }
 
+# Function to test if a registry entry is complete
+function Test-RegistryEntryComplete {
+    param (
+        [Parameter(Mandatory=$true)] [string] $Key_Label_Path,
+        [Parameter(Mandatory=$true)] [string] $Command_Path,
+        [Parameter(Mandatory=$true)] [string] $Type,
+        [string] $Icon_Path,
+        [switch] $MainMenuSwitch
+    )
+    
+    Write-Verbose "Test-RegistryEntryComplete: Starting validation for $Type"
+    Write-Verbose "Test-RegistryEntryComplete: Key_Label_Path = $Key_Label_Path"
+    Write-Verbose "Test-RegistryEntryComplete: Command_Path = $Command_Path"
+    Write-Verbose "Test-RegistryEntryComplete: Icon_Path = $Icon_Path"
+    Write-Verbose "Test-RegistryEntryComplete: MainMenuSwitch = $MainMenuSwitch"
+    
+    # Check if the main registry key exists
+    if (-not (Test-Path -Path $Key_Label_Path)) {
+        Write-Verbose "Test-RegistryEntryComplete: Registry key does not exist: $Key_Label_Path"
+        return $false
+    }
+    
+    # Check if the command subkey exists
+    if (-not (Test-Path -Path $Command_Path)) {
+        Write-Verbose "Test-RegistryEntryComplete: Command subkey does not exist: $Command_Path"
+        return $false
+    }
+    
+    # Check if the command value is correct
+    $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+    try {
+        $Actual_Command = (Get-Item -Path $Command_Path).Value
+        if ($Actual_Command -ne $Expected_Command) {
+            Write-Verbose "Test-RegistryEntryComplete: Command value mismatch"
+            Write-Verbose "Test-RegistryEntryComplete: Expected: $Expected_Command"
+            Write-Verbose "Test-RegistryEntryComplete: Actual: $Actual_Command"
+            return $false
+        }
+    } catch {
+        Write-Verbose "Test-RegistryEntryComplete: Failed to read command value: $($_.Exception.Message)"
+        return $false
+    }
+    
+    # Check if the icon property exists and has the correct value
+    if ($Icon_Path) {
+        try {
+            $Icon_Property = Get-ItemProperty -Path $Icon_Path -Name "icon" -ErrorAction SilentlyContinue
+            if (-not $Icon_Property) {
+                Write-Verbose "Test-RegistryEntryComplete: Icon property does not exist at: $Icon_Path"
+                return $false
+            }
+            
+            # Ensure we have access to the Sandbox_Icon variable
+            if (-not $Global:Sandbox_Icon) {
+                $Global:Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
+            }
+            
+            if ($Icon_Property.icon -ne $Global:Sandbox_Icon) {
+                Write-Verbose "Test-RegistryEntryComplete: Icon value mismatch"
+                Write-Verbose "Test-RegistryEntryComplete: Expected: $Global:Sandbox_Icon"
+                Write-Verbose "Test-RegistryEntryComplete: Actual: $($Icon_Property.icon)"
+                return $false
+            }
+        } catch {
+            Write-Verbose "Test-RegistryEntryComplete: Failed to read icon property: $($_.Exception.Message)"
+            return $false
+        }
+    }
+    
+    Write-Verbose "Test-RegistryEntryComplete: Registry entry is complete"
+    return $true
+}
+
 # Function to add a registry item
 function Add-RegItem {
     param (
@@ -128,10 +201,73 @@ function Add-RegItem {
             Write-Verbose "Add-RegItem: Updated Key_Label_Path for MainMenuSwitch = $Key_Label_Path"
         }
 
-        if (Test-Path -Path $Key_Label_Path) {
-            Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for $Type has already been added"
+        # Determine the correct icon path based on MainMenuSwitch
+        $Icon_Path = if ($MainMenuSwitch) { $MainMenuLabel_Path } else { $Key_Label_Path }
+        
+        # Check if the registry entry exists and is complete
+        $Is_Entry_Complete = Test-RegistryEntryComplete -Key_Label_Path $Key_Label_Path -Command_Path $Command_Path -Type $Type -Icon_Path $Icon_Path -MainMenuSwitch:$MainMenuSwitch
+        
+        if ($Is_Entry_Complete) {
+            Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for $Type has already been added and is complete"
             Add-Content -Path $RegistryPathsFile -Value $Key_Label_Path
             return
+        }
+        
+        # If the registry key exists but is incomplete, repair it
+        if (Test-Path -Path $Key_Label_Path) {
+            Write-LogMessage -Message_Type "INFO" -Message "Context menu for $Type exists but is incomplete, attempting repair"
+            
+            # Repair the command subkey if needed
+            if (-not (Test-Path -Path $Command_Path)) {
+                Write-Verbose "Add-RegItem: Repairing missing command subkey: $Command_Path"
+                try {
+                    New-Item -Path $Command_Path -ErrorAction Stop | Out-Null
+                    $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+                    Set-Item -Path $Command_Path -Value $Expected_Command -Force -ErrorAction Stop | Out-Null
+                    Write-Verbose "Add-RegItem: Successfully repaired command subkey"
+                } catch {
+                    Write-Verbose "Add-RegItem: Failed to repair command subkey: $($_.Exception.Message)"
+                    Write-LogMessage -Message_Type "ERROR" -Message "Failed to repair command subkey for $Type"
+                }
+            } else {
+                # Check and repair the command value if needed
+                $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+                try {
+                    $Actual_Command = (Get-Item -Path $Command_Path).Value
+                    if ($Actual_Command -ne $Expected_Command) {
+                        Write-Verbose "Add-RegItem: Repairing incorrect command value"
+                        Set-Item -Path $Command_Path -Value $Expected_Command -Force -ErrorAction Stop | Out-Null
+                        Write-Verbose "Add-RegItem: Successfully repaired command value"
+                    }
+                } catch {
+                    Write-Verbose "Add-RegItem: Failed to repair command value: $($_.Exception.Message)"
+                }
+            }
+            
+            # Repair the icon property if needed
+            if ($Icon_Path) {
+                try {
+                    $Icon_Property = Get-ItemProperty -Path $Icon_Path -Name "icon" -ErrorAction SilentlyContinue
+                    if (-not $Icon_Property -or $Icon_Property.icon -ne $Global:Sandbox_Icon) {
+                        Write-Verbose "Add-RegItem: Repairing icon property at $Icon_Path with value $Global:Sandbox_Icon"
+                        New-ItemProperty -Path $Icon_Path -Name "icon" -PropertyType String -Value $Global:Sandbox_Icon -Force -ErrorAction Stop | Out-Null
+                        Write-Verbose "Add-RegItem: Successfully repaired icon property"
+                    }
+                } catch {
+                    Write-Verbose "Add-RegItem: Failed to repair icon property: $($_.Exception.Message)"
+                }
+            }
+            
+            # Check if the entry is now complete after repair
+            $Is_Entry_Complete_After_Repair = Test-RegistryEntryComplete -Key_Label_Path $Key_Label_Path -Command_Path $Command_Path -Type $Type -Icon_Path $Icon_Path -MainMenuSwitch:$MainMenuSwitch
+            
+            if ($Is_Entry_Complete_After_Repair) {
+                Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for $Type has been successfully repaired"
+                Add-Content -Path $RegistryPathsFile -Value $Key_Label_Path
+                return
+            } else {
+                Write-LogMessage -Message_Type "WARNING" -Message "Context menu for $Type could not be fully repaired, proceeding with full recreation"
+            }
         }
 
         Write-Verbose "Add-RegItem: Creating registry key: $Key_Label_Path"
@@ -299,5 +435,6 @@ Export-ModuleMember -Function @(
     'Export-RegConfig',
     'Add-RegItem',
     'Remove-RegItem',
-    'Find-RegistryIconPaths'
+    'Find-RegistryIconPaths',
+    'Test-RegistryEntryComplete'
 )
