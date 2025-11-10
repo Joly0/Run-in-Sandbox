@@ -34,6 +34,7 @@ function Test-IsAdmin {
 }
 
 function Invoke-AsAdmin {
+    [CmdletBinding()]
     param(
         [string]$EffectiveBranch,
         [switch]$NoCheckpoint,

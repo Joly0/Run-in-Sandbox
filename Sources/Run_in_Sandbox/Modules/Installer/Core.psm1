@@ -41,6 +41,7 @@ function New-InstallBackup {
 }
 
 function Invoke-DeepCleanIfRequested {
+    [CmdletBinding()]
     param([switch]$DeepClean)
     if (-not $DeepClean) {
         Write-Verbose "Invoke-DeepCleanIfRequested: DeepClean not requested, skipping"
@@ -120,6 +121,7 @@ function Invoke-DeepCleanIfRequested {
 }
 
 function Install-PackageArchive {
+    [CmdletBinding()]
     param([string]$EffectiveBranch)
 
     $zipUrl = "https://github.com/Joly0/Run-in-Sandbox/archive/refs/heads/$EffectiveBranch.zip"
@@ -218,6 +220,7 @@ function Restore-CustomStartupScripts {
 }
 
 function Update-CoreFiles {
+    [CmdletBinding()]
     param(
         [string]$ExtractPath,
         [string]$RunFolder,
@@ -302,6 +305,7 @@ function Update-CoreFiles {
 }
 
 function Invoke-AddStructure {
+    [CmdletBinding()]
     param(
         [string]$ExtractPath,
         [switch]$NoCheckpoint,
