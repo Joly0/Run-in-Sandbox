@@ -81,7 +81,7 @@ function Test-RegistryEntryComplete {
     # Check if the command value is correct
     $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
     try {
-        $Actual_Command = (Get-Item -Path $Command_Path).Value
+        $Actual_Command = (Get-Item -Path $Command_Path).GetValue($null)
         if ($Actual_Command -ne $Expected_Command) {
             Write-Verbose "Test-RegistryEntryComplete: Command value mismatch"
             Write-Verbose "Test-RegistryEntryComplete: Expected: $Expected_Command"
@@ -233,7 +233,7 @@ function Add-RegItem {
                 # Check and repair the command value if needed
                 $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
                 try {
-                    $Actual_Command = (Get-Item -Path $Command_Path).Value
+                    $Actual_Command = (Get-Item -Path $Command_Path).GetValue($null)
                     if ($Actual_Command -ne $Expected_Command) {
                         Write-Verbose "Add-RegItem: Repairing incorrect command value"
                         Set-Item -Path $Command_Path -Value $Expected_Command -Force -ErrorAction Stop | Out-Null
