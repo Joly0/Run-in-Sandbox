@@ -84,8 +84,7 @@ if (Test-Path $Sandbox_File_Path) {
 function Enable-StartupScripts {
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory=$true)]
-        [string]$OriginalCommand,  # whatever you would have passed as -Command_to_Run
+        [string]$OriginalCommand,
         [string]$StartupScriptFolderName = "startup-scripts"
     )
 
@@ -285,9 +284,12 @@ function New-WSB {
     }
     Add-Content -LiteralPath $Sandbox_File_Path -Value "    </MappedFolders>"
     
-    Add-Content -Path $Sandbox_File_Path  -Value "    <LogonCommand>"
-    Add-Content -Path $Sandbox_File_Path  -Value "        <Command>$Command_to_Run</Command>"
-    Add-Content -Path $Sandbox_File_Path  -Value "    </LogonCommand>"
+    if ( -not [string]::IsNullOrEmpty($Command_to_Run) ) {
+        Add-Content -Path $Sandbox_File_Path  -Value "    <LogonCommand>"
+        Add-Content -Path $Sandbox_File_Path  -Value "        <Command>$Command_to_Run</Command>"
+        Add-Content -Path $Sandbox_File_Path  -Value "    </LogonCommand>"
+    }
+    
     Add-Content -Path $Sandbox_File_Path  -Value "</Configuration>"
 }
 
