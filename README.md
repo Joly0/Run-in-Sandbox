@@ -30,9 +30,40 @@ All the steps need to be executed from the Host, not inside the Sandbox
 ### <mark>__Method 1 - PowerShell (Recommended)__</mark>
 -   Right-click on the Windows start menu and select PowerShell or Terminal (Not CMD), preferably as admin.
 -   Copy and paste the code below and press enter:
+
+#### **Install from master branch (stable):**
 ```powershell
 irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1 | iex
 ```
+
+#### **Install from a specific branch (e.g., dev):**
+```powershell
+iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1) } -Branch dev"
+```
+
+Replace `dev` with your desired branch name (e.g., `beta`, `test`, etc.)
+
+#### **Additional installer parameters:**
+The installer supports the following optional parameters:
+
+| Parameter | Description |
+|-----------|-------------|
+| `-Branch <name>` | Install from a specific branch (default: `master`, or your currently installed branch for updates) |
+| `-DeepClean` | Performs a deep-clean of legacy registry entries before installation. Removes old context menu entries (takes 5-10 minutes) |
+| `-NoCheckpoint` | Skips creation of a system restore point during installation |
+
+**Examples:**
+```powershell
+# Install from dev branch with deep-clean
+iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1) } -Branch dev -DeepClean"
+
+# Install without creating a restore point
+iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1) } -NoCheckpoint"
+
+# Combine multiple parameters
+iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1) } -Branch dev -DeepClean -NoCheckpoint"
+```
+
 -   You will see the process being started. You will probably be asked to grant admin rights if not started as admin.
 -   That's all.
 

@@ -1,3 +1,27 @@
+<#
+.SYNOPSIS
+    DEPRECATED - Legacy common functions file for Run-in-Sandbox
+
+.DESCRIPTION
+    This file is DEPRECATED and maintained only for backward compatibility.
+    All functions have been migrated to modular PowerShell modules located in:
+    Sources/Run_in_Sandbox/Modules/
+    
+    Module structure:
+    - Modules/Shared/Environment.psm1  - Global variables and environment settings
+    - Modules/Shared/Logging.psm1      - Write-LogMessage function
+    - Modules/Shared/Config.psm1       - Get-Config function
+    - Modules/Runtime/SevenZip.psm1    - 7-Zip related functions
+    - Modules/Installer/Registry.psm1  - Registry manipulation functions
+    - Modules/Installer/Validation.psm1 - Validation and setup functions
+
+.NOTES
+    This file will be removed in a future version.
+    Please update any scripts that dot-source this file to use Import-Module instead.
+#>
+
+Write-Warning "CommonFunctions.ps1 is DEPRECATED. Please use the modular approach with Import-Module instead."
+
 # Define global variables
 $TEMP_Folder = $env:temp
 $Log_File = "$TEMP_Folder\RunInSandbox_Install.log"
@@ -30,6 +54,18 @@ function Write-LogMessage {
         default   { 'White' }
     }
     Write-Host "$MyDate - $Message_Type : $Message" -ForegroundColor $ForegroundColor
+}
+
+# Writes a detailed message to log file only (not displayed to user)
+# Use this for detailed registry paths, debug info, etc.
+function Write-LogDetail {
+    param (
+        [string]$Message,
+        [string]$Message_Type = "DETAIL"
+    )
+
+    $MyDate = "[{0:MM/dd/yy} {0:HH:mm:ss}]" -f (Get-Date)
+    Add-Content -Path $Log_File -Value "$MyDate - $Message_Type : $Message"
 }
 
 # Function to export registry configuration
@@ -118,7 +154,8 @@ function Add-RegItem {
         }
 
         if (Test-Path -Path $Key_Label_Path) {
-            Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for $Type has already been added"
+            Write-LogDetail -Message "Registry key already exists: $Key_Label_Path"
+            Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for $Info_Type has already been added"
             Add-Content -Path $RegistryPathsFile -Value $Key_Label_Path
             return
         }
@@ -132,8 +169,11 @@ function Add-RegItem {
 
         Add-Content -Path $RegistryPathsFile -Value $Key_Label_Path
 
+        Write-LogDetail -Message "Created registry key: $Key_Label_Path"
+        Write-LogDetail -Message "Created command path: $Command_Path"
         Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for `"$Info_Type`" has been added"
     } catch {
+        Write-LogDetail -Message "Failed to create registry key: $Key_Label_Path - Error: $($_.Exception.Message)"
         Write-LogMessage -Message_Type "ERROR" -Message "Context menu for $Type could not be added"
     }
 }
@@ -157,7 +197,7 @@ function Remove-RegItem {
     
     
     if (-not (Test-Path -Path $Key_Label_Path) ) {
-        if ($DeepClean) {
+        if ($Global:DeepClean) {
             Write-LogMessage -Message_Type "INFO" -Message "Registry Path for $Type has already been removed by deepclean"
             return
         }
@@ -166,20 +206,17 @@ function Remove-RegItem {
     }
     
     try {
-        # Get all child items and sort by depth (deepest first)
-        $ChildItems = Get-ChildItem -Path $Key_Label_Path -Recurse | Sort-Object { $_.PSPath.Split('\').Count } -Descending
-
-        foreach ($ChildItem in $ChildItems) {
-            Remove-Item -LiteralPath $ChildItem.PSPath -Force -ErrorAction Stop
-        }
-
-        # Remove the main registry path if it still exists
+        Write-LogDetail -Message "Removing registry path: $Key_Label_Path"
+        
+        # Remove the registry path recursively
         if (Test-Path -Path $Key_Label_Path) {
-            Remove-Item -LiteralPath $Key_Label_Path -Force -ErrorAction Stop
+            Remove-Item -LiteralPath $Key_Label_Path -Recurse -Force -ErrorAction Stop
+            Write-LogDetail -Message "Successfully removed: $Key_Label_Path"
         }
         
         Write-LogMessage -Message_Type "SUCCESS" -Message "Context menu for `"$Info_Type`" has been removed"
     } catch {
+        Write-LogDetail -Message "Failed to remove: $Key_Label_Path - Error: $($_.Exception.Message)"
         Write-LogMessage -Message_Type "ERROR" -Message "Context menu for $Type couldn´t be removed"
     }
 }

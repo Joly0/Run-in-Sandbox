@@ -4,9 +4,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## 2025-12-19
+### Changed
+- **Code Restructuring:** Refactored codebase to use PowerShell modules for better maintainability
+  - Created `Modules/Shared/` for common utilities (Logging, Config, Environment, Version)
+  - Created `Modules/Runtime/` for sandbox execution (WSB, SevenZip, StartupScripts, Dialogs, UI)
+  - Created `Modules/Installer/` for installation logic (Registry, Validation, Core)
+- **Advanced Installer:** Completely rewritten `Install_Run-in-Sandbox.ps1` with new features:
+  - `-Branch` parameter for installing from different branches (master, dev)
+  - `-DeepClean` parameter for thorough cleanup of legacy registry entries
+  - `-NoCheckpoint` parameter to skip system restore point creation
+  - Dynamic module loading from GitHub during installation
+  - Version display and reinstall prompt for existing installations
+  - Automatic backup creation before updates
+  - Fallback to CommonFunctions.ps1 for backward compatibility
+  - Updated documentation in the readme to reflect changes and new parameters
+### Added
+- `version.json` for tracking installed version and branch
+- `Modules/Installer/*` scripts with advanced installation functions
+- `Modules/Shared/*` with shared scripts
+- `Modules/Runtime/*` with runtime specific scripts
+- `04-Install_VSRedist.ps1` script to startup script to install Visual Studio Redistributables on statup (often required for software installations)
+### Removed
+- Dependency on `CommonFunctions.ps1` for all scripts (for backwards compatiblity will remain in the code base for now)
+
+
 ## 2025-12-08
 ### Fixed
-- Foxed running "folder on" and "folder in" https://github.com/Joly0/Run-in-Sandbox/issues/12
+- Fixed running "folder on" and "folder in" https://github.com/Joly0/Run-in-Sandbox/issues/12
 
 
 ## 2025-10-07

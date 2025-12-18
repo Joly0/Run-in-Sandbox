@@ -1,12 +1,29 @@
-﻿param (
+﻿[CmdletBinding()]
+param (
     [Switch]$DeepClean
 )
 
 $Current_Folder = $PSScriptRoot
 
-Unblock-File -Path $Current_Folder\CommonFunctions.ps1
-. "$Current_Folder\CommonFunctions.ps1"
+# Import modules for installer functionality
+$ModulesPath = "$Current_Folder\Sources\Run_in_Sandbox\Modules"
+if (Test-Path $ModulesPath) {
+    # Import shared modules first (Environment provides global variables)
+    Import-Module "$ModulesPath\Shared\Environment.psm1" -Force -Global
+    Import-Module "$ModulesPath\Shared\Logging.psm1" -Force -Global
+    Import-Module "$ModulesPath\Shared\Config.psm1" -Force -Global
+    # Import installer modules
+    Import-Module "$ModulesPath\Installer\Registry.psm1" -Force -Global
+    Import-Module "$ModulesPath\Installer\Validation.psm1" -Force -Global
+} else {
+    Write-Host "ERROR: Modules folder not found at $ModulesPath" -ForegroundColor Red
+    exit 1
+}
 
+# Set global variable for DeepClean mode (used by Registry module)
+if ($DeepClean) {
+    $Global:DeepClean = $true
+}
 
 Test-ForSandboxFolder
 Test-ForAdmin
@@ -64,6 +81,7 @@ if ($Add_Folder -eq $True) {
 }
 
 if ($Add_HTML -eq $True) {
+    Remove-RegItem -Sub_Reg_Path "SystemFileAssociations\.html" -Type "HTML" -Key_Label "Run this web link in Sandbox"
     Remove-RegItem -Sub_Reg_Path "MSEdgeHTM" -Type "HTML" -Key_Label "Run this web link in Sandbox"
     Remove-RegItem -Sub_Reg_Path "ChromeHTML" -Type "HTML" -Key_Label "Run this web link in Sandbox"
     Remove-RegItem -Sub_Reg_Path "IE.AssocFile.HTM" -Type "HTML" -Key_Label "Run this web link in Sandbox"
@@ -71,7 +89,7 @@ if ($Add_HTML -eq $True) {
 }
 
 if ($Add_Intunewin -eq $True) {
-    Remove-RegItem -Sub_Reg_Path ".intunewin" -Type "Intunewin"
+    Remove-RegItem -Sub_Reg_Path "SystemFileAssociations\.intunewin" -Type "Intunewin"
 }
 
 if ($Add_ISO -eq $True) {
@@ -84,17 +102,21 @@ if ($Add_MSI -eq $True) {
 }
 
 if ($Add_MSIX -eq $True) {
+    $Removed_MSIX_ProgIds = @()
+    
     $MSIX_Shell_Registry_Key = "Registry::HKEY_CLASSES_ROOT\.msix\OpenWithProgids"
     if (Test-Path -Path $MSIX_Shell_Registry_Key) {
         $Get_Default_Value = (Get-Item -Path $MSIX_Shell_Registry_Key).Property
         if ($Get_Default_Value) {
             Remove-RegItem -Sub_Reg_Path "$Get_Default_Value" -Type "MSIX"
+            $Removed_MSIX_ProgIds += $Get_Default_Value
         } 
     }
     $Default_MSIX_HKCU = "$HKCU_Classes\.msix"
     if (Test-Path -Path $Default_MSIX_HKCU) {
         $Get_Default_Value = (Get-Item -Path "$Default_MSIX_HKCU\OpenWithProgids").Property
-        if ($Get_Default_Value) {
+        # Only remove if this ProgID wasn't already removed from HKCR
+        if ($Get_Default_Value -and ($Get_Default_Value -notin $Removed_MSIX_ProgIds)) {
             Remove-RegItem -Reg_Path $HKCU_Classes -Sub_Reg_Path "$Get_Default_Value" -Type "MSIX"
         }
     } 
@@ -157,10 +179,25 @@ if ($Add_VBS -eq $True) {
 
 if ($Add_ZIP -eq $True) {
     Remove-RegItem -Sub_Reg_Path "CompressedFolder" -Type "ZIP" -Key_Label "Extract ZIP in Sandbox"
-    Remove-RegItem -Sub_Reg_Path "WinRAR.ZIP" -Type "ZIP" -Key_Label "Extract ZIP (WinRAR) in Sandbox"
-    Remove-RegItem -Sub_Reg_Path "Applications\7zFM.exe" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract 7z file in Sandbox"
-    Remove-RegItem -Sub_Reg_Path "7-Zip.7z" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract 7z file in Sandbox"
-    Remove-RegItem -Sub_Reg_Path "7-Zip.rar" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract RAR file in Sandbox"
+    
+    # Only try to remove WinRAR entry if it exists
+    if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\WinRAR.ZIP") {
+        Remove-RegItem -Sub_Reg_Path "WinRAR.ZIP" -Type "ZIP" -Key_Label "Extract ZIP (WinRAR) in Sandbox"
+    }
+    
+    # Only try to remove 7z entries if they exist
+    if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\Applications\7zFM.exe") {
+        Remove-RegItem -Sub_Reg_Path "Applications\7zFM.exe" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract 7z file in Sandbox"
+    }
+    if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\7-Zip.7z") {
+        Remove-RegItem -Sub_Reg_Path "7-Zip.7z" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract 7z file in Sandbox"
+    }
+    if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\SystemFileAssociations\.7z") {
+        Remove-RegItem -Sub_Reg_Path "SystemFileAssociations\.7z" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract 7z file in Sandbox"
+    }
+    if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\7-Zip.rar") {
+        Remove-RegItem -Sub_Reg_Path "7-Zip.rar" -Type "7z" -Info_Type "7z" -Entry_Name "ZIP" -Key_Label "Extract RAR file in Sandbox"
+    }
 }
 
 if (Test-Path -Path $Run_in_Sandbox_Folder) {

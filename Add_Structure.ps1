@@ -1,3 +1,4 @@
+[CmdletBinding()]
 param (
     [Switch]$NoSilent,
     [Switch]$NoCheckpoint
@@ -5,8 +6,25 @@ param (
 
 $Current_Folder = $PSScriptRoot
 
-Unblock-File -Path $Current_Folder\CommonFunctions.ps1
-. "$Current_Folder\CommonFunctions.ps1"
+# Import modules for installer functionality
+$ModulesPath = "$Current_Folder\Sources\Run_in_Sandbox\Modules"
+if (Test-Path $ModulesPath) {
+    # Import shared modules first (Environment provides global variables)
+    Import-Module "$ModulesPath\Shared\Environment.psm1" -Force -Global
+    Import-Module "$ModulesPath\Shared\Logging.psm1" -Force -Global
+    Import-Module "$ModulesPath\Shared\Config.psm1" -Force -Global
+    # Import runtime modules
+    Import-Module "$ModulesPath\Runtime\SevenZip.psm1" -Force -Global
+    # Import installer modules
+    Import-Module "$ModulesPath\Installer\Registry.psm1" -Force -Global
+    Import-Module "$ModulesPath\Installer\Validation.psm1" -Force -Global
+} else {
+    Write-Host "ERROR: Modules folder not found at $ModulesPath" -ForegroundColor Red
+    exit 1
+}
+
+# Set up Sources path for validation
+$Sources = "$Current_Folder\Sources\*"
 
 
 if (Test-Path -Path $Log_File) {
@@ -21,14 +39,14 @@ Test-ForAdmin
 
 Test-ForSandbox
 
-Test-ForSources
+Test-ForSources -Current_Folder $Current_Folder -Sources $Sources
 
 
 $Progress_Activity = "Enabling Run in Sandbox context menus"
 Write-Progress -Activity $Progress_Activity -PercentComplete 1
 
 
-Copy-Sources
+Copy-Sources -Current_Folder $Current_Folder -Sources $Sources
 
 Unblock-Sources
 
@@ -49,7 +67,7 @@ if ($NoSilent) {
 Get-Config
 Write-Progress -Activity $Progress_Activity -PercentComplete 10
 
-New-Checkpoint
+New-Checkpoint -NoCheckpoint:$NoCheckpoint
 Write-Progress -Activity $Progress_Activity -PercentComplete 20
 
 Write-LogMessage -Message_Type "INFO" -Message "Adding context menu"
