@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2026-02-02
+### Changed
+- Properly implement hiding and showing shell (CMD and Powershell) windows inside the Sandbox
+### Added
+- Added debug output for the different shells when running with showing shell windows (`AppBundle_Install.ps1`,`IntuneWin_Install.ps1`)
+- Added additional winforms window in error case with additional error information
+### Fixed
+- Fixed various bugs in the `RunInSandbox.ps1` script
+
+
 ## 2025-12-19
 ### Changed
 - **Code Restructuring:** Refactored codebase to use PowerShell modules for better maintainability

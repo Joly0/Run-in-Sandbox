@@ -22,7 +22,8 @@ $ScriptPath = [WildcardPattern]::Escape($ScriptPath)
 if ( ($Type -eq "Folder_Inside") -or ($Type -eq "Folder_On") ) {
     $DirectoryName = (Get-Item $ScriptPath).fullname
 } else {
-    $FolderPath = Split-Path -LiteralPath (Split-Path -LiteralPath "$ScriptPath" -Parent) -Leaf
+    $ParentPath = Split-Path -Path "$ScriptPath" -Parent
+    $FolderPath = Split-Path -Path "$ParentPath" -Leaf
     $DirectoryName = (Get-Item $ScriptPath).DirectoryName
     $FileName = (Get-Item $ScriptPath).BaseName
     $Full_FileName = (Get-Item $ScriptPath).Name
@@ -60,6 +61,11 @@ $Sandbox_ClipboardRedirection = $my_xml.Configuration.ClipboardRedirection
 $Sandbox_MemoryInMB = $my_xml.Configuration.MemoryInMB
 $WSB_Cleanup = $my_xml.Configuration.WSB_Cleanup
 $Hide_Powershell = $my_xml.Configuration.Hide_Powershell
+
+# Default to "True" (hidden) if Hide_Powershell is missing or empty
+if ([string]::IsNullOrEmpty($Hide_Powershell)) {
+    $Hide_Powershell = "True"
+}
 
 [System.Collections.ArrayList]$PowershellParameters = @(
     '-sta'
@@ -121,19 +127,19 @@ switch ($Type) {
             Write-LogMessage -Message_Type "INFO" -Message "Using cached 7-Zip installer: $CachedInstaller"
         }
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -AdditionalMappedFolders $AdditionalFolders -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "CMD" {
         $Startup_Command = $PSRun_Command + " " + "Start-Process $Full_Startup_Path_Quoted"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "EXE" {
         $Startup_Command = Show-EXEDialog -Run_in_Sandbox_Folder $Run_in_Sandbox_Folder -Full_Startup_Path_Quoted $Full_Startup_Path_Quoted -PSRun_File $PSRun_File
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "Folder_On" {
@@ -145,19 +151,19 @@ switch ($Type) {
     "HTML" {
         $Startup_Command = $PSRun_Command + " " + "`"Invoke-Item -LiteralPath `'$Full_Startup_Path_Quoted`'`""
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "URL" {
         $Startup_Command = $PSRun_Command + " " + "Start-Process $Sandbox_Root_Path"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "Intunewin" {
         $Startup_Command = Show-IntunewinDialog -Run_in_Sandbox_Folder $Run_in_Sandbox_Folder -FileName $FileName -PSRun_File $PSRun_File
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "ISO" {
@@ -193,84 +199,84 @@ switch ($Type) {
             Write-LogMessage -Message_Type "INFO" -Message "Using cached 7-Zip installer for ISO: $CachedInstaller"
         }
         
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -AdditionalMappedFolders $AdditionalFolders -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "MSI" {
         $Full_Startup_Path_UnQuoted = $Full_Startup_Path_Quoted.Replace('"', "")
         $Startup_Command = Show-MSIDialog -Run_in_Sandbox_Folder $Run_in_Sandbox_Folder -Full_Startup_Path_UnQuoted $Full_Startup_Path_UnQuoted
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "MSIX" {
         $Startup_Command = $PSRun_Command + " " + "Add-AppPackage -LiteralPath $Full_Startup_Path_Quoted"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "PDF" {
         $Full_Startup_Path_Quoted = $Full_Startup_Path_Quoted.Replace('"', '')
         $Startup_Command = $PSRun_Command + " " + "`"Invoke-Item -LiteralPath `'$Full_Startup_Path_Quoted`'`""
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "PPKG" {
         $Startup_Command = $PSRun_Command + " " + "Install-ProvisioningPackage $Full_Startup_Path_Quoted -forceinstall -quietinstall"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "PS1Basic" {
         $Script:Startup_Command = $PSRun_File + " " + "$Full_Startup_Path_Quoted"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "PS1System" {
         $Startup_Command = "$Sandbox_Root_Path\PsExec.exe \\localhost -nobanner -accepteula -s Powershell -ExecutionPolicy Bypass -File $Full_Startup_Path_Quoted"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "PS1Params" {
         $Full_Startup_Path_UnQuoted = $Full_Startup_Path_Quoted.Replace('"', "")
         $Startup_Command = Show-PS1ParamsDialog -Run_in_Sandbox_Folder $Run_in_Sandbox_Folder -Full_Startup_Path_UnQuoted $Full_Startup_Path_UnQuoted -PSRun_File $PSRun_File
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "REG" {
         $Startup_Command = "REG IMPORT $Full_Startup_Path_Quoted"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "SDBApp" {
         $AppBundle_Installer = "$Sandbox_Root_Path\AppBundle_Install.ps1"
         $Startup_Command = $PSRun_File + " " + "$AppBundle_Installer"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "VBSBasic" {
         $Startup_Command = "wscript.exe $Full_Startup_Path_Quoted"
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "VBSParams" {
         $Full_Startup_Path_UnQuoted = $Full_Startup_Path_Quoted.Replace('"', '')
         $Startup_Command = Show-VBSParamsDialog -Run_in_Sandbox_Folder $Run_in_Sandbox_Folder -Full_Startup_Path_UnQuoted $Full_Startup_Path_UnQuoted
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "ZIP" {
         $Startup_Command = $PSRun_Command + " " + "`"Expand-Archive -LiteralPath '$Full_Startup_Path' -DestinationPath '$Sandbox_Desktop_Path\ZIP_extracted'`""
 
-        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command
+        $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
 }
@@ -282,10 +288,19 @@ do {
 
 if ($WSB_Cleanup -eq $True) {
     Remove-Leftovers -RemovalPath $Sandbox_File_Path
-    Remove-Leftovers -RemovalPath $Intunewin_Command_File
-    Remove-Leftovers -RemovalPath $Intunewin_Content_File
-    Remove-Leftovers -RemovalPath $EXE_Command_File
+    if (-not [string]::IsNullOrEmpty($Intunewin_Command_File)) {
+        Remove-Leftovers -RemovalPath $Intunewin_Command_File
+    }
+    if (-not [string]::IsNullOrEmpty($Intunewin_Content_File)) {
+        Remove-Leftovers -RemovalPath $Intunewin_Content_File
+    }
+    if (-not [string]::IsNullOrEmpty($EXE_Command_File)) {
+        Remove-Leftovers -RemovalPath $EXE_Command_File
+    }
     Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp"
     Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\NotepadPayload"
     Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\startup-scripts\OriginalCommand.txt"
 }
+
+Write-Host "Closing in 5 seconds..."
+Start-Sleep -s 5
