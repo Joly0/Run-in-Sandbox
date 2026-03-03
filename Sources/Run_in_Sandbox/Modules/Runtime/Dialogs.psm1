@@ -68,7 +68,7 @@ function Show-MSIDialog {
         [string]$Full_Startup_Path_UnQuoted
     )
     
-    $XamlPath = "$Run_in_Sandbox_Folder\RunInSandbox_Config.xaml"
+    $XamlPath = "$Run_in_Sandbox_Folder\RunInSandbox_EXE.xaml"
     if (-not (Test-Path $XamlPath)) {
         throw "XAML file not found: $XamlPath"
     }
@@ -210,7 +210,7 @@ function Show-VBSParamsDialog {
         [string]$Full_Startup_Path_UnQuoted
     )
     
-    $XamlPath = "$Run_in_Sandbox_Folder\RunInSandbox_Config.xaml"
+    $XamlPath = "$Run_in_Sandbox_Folder\RunInSandbox_Params.xaml"
     if (-not (Test-Path $XamlPath)) {
         throw "XAML file not found: $XamlPath"
     }
