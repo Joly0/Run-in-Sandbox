@@ -288,15 +288,10 @@ do {
 
 if ($WSB_Cleanup -eq $True) {
     Remove-Leftovers -RemovalPath $Sandbox_File_Path
-    if (-not [string]::IsNullOrEmpty($Intunewin_Command_File)) {
-        Remove-Leftovers -RemovalPath $Intunewin_Command_File
-    }
-    if (-not [string]::IsNullOrEmpty($Intunewin_Content_File)) {
-        Remove-Leftovers -RemovalPath $Intunewin_Content_File
-    }
-    if (-not [string]::IsNullOrEmpty($EXE_Command_File)) {
-        Remove-Leftovers -RemovalPath $EXE_Command_File
-    }
+    # Temp files created by dialog functions (Dialogs.psm1)
+    Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\temp\Intunewin_Install_Command.txt"
+    Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\temp\Intunewin_Folder.txt"
+    Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\temp\EXE_Command_File.txt"
     Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp"
     Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\NotepadPayload"
     Remove-Leftovers -RemovalPath "$Run_in_Sandbox_Folder\startup-scripts\OriginalCommand.txt"

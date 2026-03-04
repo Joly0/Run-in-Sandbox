@@ -1,6 +1,6 @@
 param (
-    [String]$Intunewin_Content_File = "C:\Run_in_Sandbox\Intunewin_Folder.txt",
-    [String]$Intunewin_Command_File = "C:\Run_in_Sandbox\Intunewin_Install_Command.txt"
+    [String]$Intunewin_Content_File = "C:\Run_in_Sandbox\temp\Intunewin_Folder.txt",
+    [String]$Intunewin_Command_File = "C:\Run_in_Sandbox\temp\Intunewin_Install_Command.txt"
 )
 if (-not (Test-Path $Intunewin_Content_File) ) {
 	EXIT

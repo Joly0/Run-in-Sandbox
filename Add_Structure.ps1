@@ -26,6 +26,9 @@ if (Test-Path $ModulesPath) {
 # Set up Sources path for validation
 $Sources = "$Current_Folder\Sources\*"
 
+# Ensure any error from validation functions stops execution
+$ErrorActionPreference = 'Stop'
+
 
 if (Test-Path -Path $Log_File) {
     Remove-Item -Path $Log_File
@@ -36,6 +39,8 @@ New-Item -Path $Log_File -Type file -Force | Out-Null
 Write-LogMessage -Message_Type "INFO" -Message "Starting the configuration of RunInSandbox"
 
 Test-ForAdmin
+
+Test-Prerequisites
 
 Test-ForSandbox
 

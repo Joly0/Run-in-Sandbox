@@ -1,5 +1,5 @@
 $Sandbox_Folder = "C:\Run_in_Sandbox"
-$File = "$Sandbox_Folder\EXE_Command_File.txt"
+$File = "$Sandbox_Folder\temp\EXE_Command_File.txt"
 
 $Content = Get-Content -Raw $File
 $BaseFolder = Split-Path($Content.Split('"')[1])

@@ -31,7 +31,9 @@ function Show-EXEDialog {
     $XamlLoader.Load($XamlPath)
     $Reader = (New-Object System.Xml.XmlNodeReader $XamlLoader)
     $Form_EXE = [Windows.Markup.XamlReader]::Load($Reader)
-    $EXE_Command_File = "$Run_in_Sandbox_Folder\EXE_Command_File.txt"
+    $TempFolder = "$Run_in_Sandbox_Folder\temp"
+    New-Item -ItemType Directory -Path $TempFolder -Force | Out-Null
+    $EXE_Command_File = "$TempFolder\EXE_Command_File.txt"
 
     $switches_for_exe = $Form_EXE.findname("switches_for_exe")
     $add_switches = $Form_EXE.findname("add_switches")
@@ -167,8 +169,10 @@ function Show-IntunewinDialog {
     }
     
     $Intunewin_Folder = "C:\IntuneWin\$FileName.intunewin"
-    $Intunewin_Content_File = "$Run_in_Sandbox_Folder\Intunewin_Folder.txt"
-    $Intunewin_Command_File = "$Run_in_Sandbox_Folder\Intunewin_Install_Command.txt"
+    $TempFolder = "$Run_in_Sandbox_Folder\temp"
+    New-Item -ItemType Directory -Path $TempFolder -Force | Out-Null
+    $Intunewin_Content_File = "$TempFolder\Intunewin_Folder.txt"
+    $Intunewin_Command_File = "$TempFolder\Intunewin_Install_Command.txt"
     $Intunewin_Folder | Out-File $Intunewin_Content_File -Force -NoNewline
     
     [System.Reflection.Assembly]::LoadWithPartialName('presentationframework') | Out-Null

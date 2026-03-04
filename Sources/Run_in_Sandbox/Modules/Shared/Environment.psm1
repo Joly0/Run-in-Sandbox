@@ -106,6 +106,56 @@ function Invoke-AsAdmin {
     break script
 }
 
+# Sets Modify permissions for the built-in Users group on the given path so that
+# non-admin users can edit config files and startup scripts at runtime.
+# Uses the well-known SID S-1-5-32-545 (BUILTIN\Users) which works regardless of
+# the OS display language.
+function Set-UserWritePermissions {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$Path,
+        [switch]$IsDirectory
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        Write-Verbose "Set-UserWritePermissions: Path does not exist, skipping: $Path"
+        return $false
+    }
+
+    try {
+        $acl = Get-Acl -LiteralPath $Path
+        # BUILTIN\Users – language-independent SID
+        $identity = New-Object System.Security.Principal.SecurityIdentifier("S-1-5-32-545")
+
+        if ($IsDirectory) {
+            $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $identity,
+                "Modify",
+                "ContainerInherit,ObjectInherit",
+                "None",
+                "Allow"
+            )
+        } else {
+            $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
+                $identity,
+                "Modify",
+                "None",
+                "None",
+                "Allow"
+            )
+        }
+
+        $acl.SetAccessRule($rule)
+        Set-Acl -LiteralPath $Path -AclObject $acl
+        Write-Verbose "Set-UserWritePermissions: Permissions set on $Path"
+        return $true
+    } catch {
+        Write-Verbose "Set-UserWritePermissions: Failed on ${Path}: $($_.Exception.Message)"
+        return $false
+    }
+}
+
 # Export variables and functions
 Export-ModuleMember -Variable @(
     'Run_in_Sandbox_Folder',
@@ -119,5 +169,6 @@ Export-ModuleMember -Variable @(
     'HKCU_Classes'
 ) -Function @(
     'Test-IsAdmin',
-    'Invoke-AsAdmin'
+    'Invoke-AsAdmin',
+    'Set-UserWritePermissions'
 )

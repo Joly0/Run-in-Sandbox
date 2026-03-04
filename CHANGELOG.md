@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2026-03-04
+### Fixed
+- Fixed `_orchestrator.ps1` access denied error when starting a sandbox after a fresh install
+- Fixed cleanup of Intunewin and EXE temp files not being removed when sandbox is closed
+- Fixed installation not stopping on errors (replaced `EXIT` with `throw` in validation functions for proper error propagation)
+### Changed
+- Moved runtime temp files (`Intunewin_Folder.txt`, `Intunewin_Install_Command.txt`, `EXE_Command_File.txt`) into the `temp/` subfolder
+- Installer now sets targeted `Modify` permissions for BUILTIN\Users on `temp/`, `startup-scripts/`, and `Sandbox_Config.xml` instead of `FullControl` on the entire install folder
+### Added
+- `Set-UserWritePermissions` function in `Environment.psm1` for reusable, language-independent permission management
+- Pre-install prerequisite checks for RAM (≥4 GB) and disk space (≥1 GB free)
+- Option to automatically enable Windows Sandbox feature if not installed, with user confirmation and manual reboot
+- `$ErrorActionPreference = 'Stop'` in `Add_Structure.ps1` to halt on any error
+
+
 ## 2026-02-02
 ### Fixed
 - Fixed dialog forVBSParams and MSI files
