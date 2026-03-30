@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2026-03-30
+### Fixed
+- Fixed logging file path being affected by Windows 8.3 short paths when username has space should fix [#17]https://github.com/Joly0/Run-in-Sandbox/issues/17
+
+
 ## 2026-03-04
 ### Fixed
 - Fixed `_orchestrator.ps1` access denied error when starting a sandbox after a fresh install

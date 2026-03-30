@@ -13,7 +13,8 @@
 
 # Ensure Log_File is set (fallback if Environment.psm1 not loaded)
 if (-not $Global:Log_File) {
-    $Global:Log_File = "$env:temp\RunInSandbox_Install.log"
+    $tempPath = [System.IO.Path]::GetTempPath()
+    $Global:Log_File = Join-Path $tempPath "RunInSandbox_Install.log"
 }
 
 # Writes a timestamped message to console (with color coding) and log file
