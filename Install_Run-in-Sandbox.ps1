@@ -18,9 +18,14 @@
 .PARAMETER NoCheckpoint
     Skips creation of a system restore point during installation.
 
+.PARAMETER OriginalUserSid
+    Internal use only. Carries the SID of the non-elevated user across the UAC
+    boundary so HKCU writes target the original user (not the admin account
+    that answered the UAC prompt). Set automatically by Invoke-AsAdmin.
+
 .EXAMPLE
     irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1 | iex
-    
+
 .EXAMPLE
     .\Install_Run-in-Sandbox.ps1 -Branch dev -DeepClean
 #>
@@ -28,8 +33,25 @@
 param (
     [switch]$NoCheckpoint,
     [switch]$DeepClean,
-    [string]$Branch = "master"
+    [string]$Branch = "master",
+    [string]$OriginalUserSid
 )
+
+# Resolve the original user's SID before any elevation happens. If we were
+# relaunched by Invoke-AsAdmin, the parent already captured it and forwarded it
+# to us. Otherwise, capture the current token now - but only if it represents a
+# real user account, since service SIDs would later defeat the explorer.exe
+# fallback in Resolve-InteractiveUserSid.
+if ($OriginalUserSid) {
+    $Global:OriginalUserSid = $OriginalUserSid
+} else {
+    try {
+        $sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
+        if ($sid -notin @('S-1-5-18','S-1-5-19','S-1-5-20') -and $sid -notlike 'S-1-5-80-*') {
+            $Global:OriginalUserSid = $sid
+        }
+    } catch { }
+}
 
 if ($VerbosePreference -eq 'Continue') {
     $PSDefaultParameterValues['*:Verbose'] = $true
@@ -129,7 +151,7 @@ if (-not $moduleLoadSuccess) {
 $Branch = Resolve-Branch -Requested $Branch -Installed:$IsInstalled
 Write-Verbose "Effective branch: $Branch"
 
-Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean
+Invoke-AsAdmin -EffectiveBranch $Branch -NoCheckpoint:$NoCheckpoint -DeepClean:$DeepClean -OriginalUserSid $Global:OriginalUserSid
 
 # ======================================================================================
 # Show banner if existing installation detected

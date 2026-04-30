@@ -5,6 +5,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2026-04-30
+### Fixed
+- Fixed bugged installation for ps1 context menu´s when different admin account is needed for UAC (ps1 context menu was written to admin registry). Fixes [#18]https://github.com/Joly0/Run-in-Sandbox/issues/18
+
+
 ## 2026-03-30
 ### Fixed
 - Fixed logging file path being affected by Windows 8.3 short paths when username has space should fix [#17]https://github.com/Joly0/Run-in-Sandbox/issues/17
