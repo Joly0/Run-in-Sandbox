@@ -243,4 +243,44 @@ if ($Add_ZIP -eq $True) {
 }
 Write-Progress -Activity $Progress_Activity -PercentComplete 100
 
+
+# Set permissions so non-admin users can edit config files and write the
+# runtime caches (temp, NotepadPayload). Lives here rather than in the wrapper
+# installer so users who run Add_Structure.ps1 directly from the ZIP also get
+# it applied.
+try {
+    Write-LogMessage -Message_Type "INFO" -Message "Setting folder permissions"
+    $permSuccess = $true
+
+    # Ensure temp folder exists for runtime temp files (Intunewin, EXE command files, etc.)
+    $tempFolder = Join-Path $Run_in_Sandbox_Folder "temp"
+    if (-not (Test-Path $tempFolder)) {
+        New-Item -ItemType Directory -Path $tempFolder -Force | Out-Null
+    }
+    $permSuccess = (Set-UserWritePermissions -Path $tempFolder -IsDirectory) -and $permSuccess
+
+    # NotepadPayload caches notepad.exe and its MUI for the sandbox; the runtime
+    # writes here as a non-admin user, so it must be user-writable. Recreate it
+    # cleanly so any admin-owned files from a previous install do not block the
+    # runtime overwrite (and keep the sandbox from being able to read the
+    # mapped folder).
+    $notepadPayload = Join-Path $Run_in_Sandbox_Folder "NotepadPayload"
+    if (Test-Path $notepadPayload) {
+        Remove-Item -LiteralPath $notepadPayload -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    New-Item -ItemType Directory -Path $notepadPayload -Force | Out-Null
+    $permSuccess = (Set-UserWritePermissions -Path $notepadPayload -IsDirectory) -and $permSuccess
+
+    $permSuccess = (Set-UserWritePermissions -Path (Join-Path $Run_in_Sandbox_Folder "startup-scripts") -IsDirectory) -and $permSuccess
+    $permSuccess = (Set-UserWritePermissions -Path (Join-Path $Run_in_Sandbox_Folder "Sandbox_Config.xml")) -and $permSuccess
+
+    if ($permSuccess) {
+        Write-LogMessage -Message_Type "SUCCESS" -Message "Folder permissions set successfully"
+    } else {
+        Write-LogMessage -Message_Type "WARNING" -Message "Some permissions could not be set"
+    }
+} catch {
+    Write-LogMessage -Message_Type "WARNING" -Message "Failed to set folder permissions: $($_.Exception.Message)"
+}
+
 Copy-Item -Path $Log_File -Destination $Destination_folder -Force

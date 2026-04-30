@@ -283,27 +283,6 @@ try {
         break script
     }
 
-    # Set permissions so non-admin users can edit config and startup scripts
-    try {
-        Write-Info "Setting folder permissions..." ([ConsoleColor]::Cyan)
-        $permSuccess = $true
-        # Ensure temp folder exists for runtime temp files (Intunewin, EXE command files, etc.)
-        $tempFolder = Join-Path $Run_in_Sandbox_Folder "temp"
-        if (-not (Test-Path $tempFolder)) {
-            New-Item -ItemType Directory -Path $tempFolder -Force | Out-Null
-        }
-        $permSuccess = (Set-UserWritePermissions -Path $tempFolder -IsDirectory) -and $permSuccess
-        $permSuccess = (Set-UserWritePermissions -Path (Join-Path $Run_in_Sandbox_Folder "startup-scripts") -IsDirectory) -and $permSuccess
-        $permSuccess = (Set-UserWritePermissions -Path (Join-Path $Run_in_Sandbox_Folder "Sandbox_Config.xml")) -and $permSuccess
-        if ($permSuccess) {
-            Write-Info "Folder permissions set successfully." ([ConsoleColor]::Green)
-        } else {
-            Write-Info "Warning: Some permissions could not be set." ([ConsoleColor]::Yellow)
-        }
-    } catch {
-        Write-Info "Warning: Failed to set folder permissions: $($_.Exception.Message)" ([ConsoleColor]::Yellow)
-    }
-
     Clear-TempArtifacts -ExtractPath $extractPath -RunFolder $Run_in_Sandbox_Folder
     
     # Clean up config backup
