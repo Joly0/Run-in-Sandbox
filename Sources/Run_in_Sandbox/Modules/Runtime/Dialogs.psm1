@@ -174,11 +174,18 @@ function Show-IntunewinDialog {
     $Intunewin_Content_File = "$TempFolder\Intunewin_Folder.txt"
     $Intunewin_Command_File = "$TempFolder\Intunewin_Install_Command.txt"
     $Intunewin_Folder | Out-File $Intunewin_Content_File -Force -NoNewline
-    
+
+    # Pre-clean the command file. It is only written when the user clicks the
+    # + button, so its absence after the dialog closes means "no input was
+    # captured" - used below to trigger a Windows.Forms fallback prompt.
+    if (Test-Path -LiteralPath $Intunewin_Command_File) {
+        Remove-Item -LiteralPath $Intunewin_Command_File -Force -ErrorAction SilentlyContinue
+    }
+
     [System.Reflection.Assembly]::LoadWithPartialName('presentationframework') | Out-Null
     [System.Reflection.Assembly]::LoadFrom("$Run_in_Sandbox_Folder\assembly\MahApps.Metro.dll") | Out-Null
     [System.Reflection.Assembly]::LoadFrom("$Run_in_Sandbox_Folder\assembly\MahApps.Metro.IconPacks.dll") | Out-Null
-    
+
     $XamlLoader = (New-Object System.Xml.XmlDocument)
     $XamlLoader.Load($XamlPath)
     $Reader = (New-Object System.Xml.XmlNodeReader $XamlLoader)
@@ -193,12 +200,24 @@ function Show-IntunewinDialog {
         $Form_Intunewin.close()
     })
 
-    $Form_Intunewin.Add_Closing({
-        $Script:install_command = $install_command_intunewin.Text.ToString()
-        $Script:install_command | Out-File $Intunewin_Command_File -Force -NoNewline
-    })
-
     $Form_Intunewin.ShowDialog() | Out-Null
+
+    # Fallback for environments where the WPF/MahApps dialog auto-closes
+    # without firing the + click handler (seen on locked-down Windows 11
+    # builds - focus-stealing prevention, ASR rules, etc.). A plain
+    # Windows.Forms InputBox is far less likely to be torn down by those
+    # policies than a PresentationFramework window.
+    if (-not (Test-Path -LiteralPath $Intunewin_Command_File)) {
+        Add-Type -AssemblyName Microsoft.VisualBasic
+        $fallback = [Microsoft.VisualBasic.Interaction]::InputBox(
+            "Enter the install command for $FileName.intunewin (e.g. install.exe /S):",
+            "Run-in-Sandbox: Intunewin install command",
+            ""
+        )
+        if ($fallback) {
+            $fallback | Out-File $Intunewin_Command_File -Force -NoNewline
+        }
+    }
 
     $Sandbox_Root_Path = "C:\Run_in_Sandbox"
     $Intunewin_Installer = "$Sandbox_Root_Path\IntuneWin_Install.ps1"

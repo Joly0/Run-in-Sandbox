@@ -80,7 +80,7 @@ function Test-RegistryEntryComplete {
     }
     
     # Check if the command value is correct
-    $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+    $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -Command `"& 'C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1' -Type $Type -ScriptPath '%V'`""
     try {
         $Actual_Command = (Get-Item -Path $Command_Path).GetValue($null)
         if ($Actual_Command -ne $Expected_Command) {
@@ -158,7 +158,7 @@ function Add-RegItem {
     $Key_Label_Path = "$Shell_Registry_Key\$Key_Label"
     $MainMenuLabel_Path = "$Shell_Registry_Key\$MainMenuLabel"
     $Command_Path = "$Key_Label_Path\Command"
-    $Command_for = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+    $Command_for = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -Command `"& 'C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1' -Type $Type -ScriptPath '%V'`""
     
     Write-Verbose "Add-RegItem: Base_Registry_Key = $Base_Registry_Key"
     Write-Verbose "Add-RegItem: Shell_Registry_Key = $Shell_Registry_Key"
@@ -225,7 +225,7 @@ function Add-RegItem {
                 Write-Verbose "Add-RegItem: Repairing missing command subkey: $Command_Path"
                 try {
                     New-Item -Path $Command_Path -ErrorAction Stop | Out-Null
-                    $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+                    $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -Command `"& 'C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1' -Type $Type -ScriptPath '%V'`""
                     Set-Item -Path $Command_Path -Value $Expected_Command -Force -ErrorAction Stop | Out-Null
                     Write-Verbose "Add-RegItem: Successfully repaired command subkey"
                 } catch {
@@ -234,7 +234,7 @@ function Add-RegItem {
                 }
             } else {
                 # Check and repair the command value if needed
-                $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -File C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1 -Type $Type -ScriptPath `"%V`""
+                $Expected_Command = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe -WindowStyle Hidden -NoProfile -ExecutionPolicy Unrestricted -sta -Command `"& 'C:\\ProgramData\\Run_in_Sandbox\\RunInSandbox.ps1' -Type $Type -ScriptPath '%V'`""
                 try {
                     $Actual_Command = (Get-Item -Path $Command_Path).GetValue($null)
                     if ($Actual_Command -ne $Expected_Command) {

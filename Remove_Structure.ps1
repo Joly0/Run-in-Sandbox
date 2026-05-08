@@ -141,25 +141,33 @@ if ($Add_PS1 -eq $True) {
     
     if ($Windows_Version -like "*Windows 11*") {
         $Registry_Set = $False
-        if (Test-Path $HKCU_Classes) {
-            $Default_PS1_HKCU = "$HKCU_Classes\.ps1"
-            
-            $OpenWithProgids_Key = "$Default_PS1_HKCU\OpenWithProgids"
-            if (Test-Path $OpenWithProgids_Key) {
-                $Get_OpenWithProgids_Default_Value = (Get-Item $OpenWithProgids_Key).Property
-                ForEach ($Prop in $Get_OpenWithProgids_Default_Value) {
-                    Remove-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1"
-                }
-                $Registry_Set = $True
-            }
+        try {
+            if (Test-Path $HKCU_Classes) {
+                $Default_PS1_HKCU = "$HKCU_Classes\.ps1"
 
-            $PS1_UserChoice = "$HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ps1\UserChoice"
-            if (Test-Path -Path $PS1_UserChoice) {
-                $Get_UserChoice = (Get-ItemProperty $PS1_UserChoice).ProgID
-                $HKCR_UserChoice_Key = "Registry::HKEY_CLASSES_ROOT\$Get_UserChoice"
-                Remove-RegItem -Sub_Reg_Path "$Get_UserChoice" -Type "PS1"
-                $Registry_Set = $True
+                $OpenWithProgids_Key = "$Default_PS1_HKCU\OpenWithProgids"
+                if (Test-Path $OpenWithProgids_Key) {
+                    $Get_OpenWithProgids_Default_Value = (Get-Item $OpenWithProgids_Key).Property
+                    ForEach ($Prop in $Get_OpenWithProgids_Default_Value) {
+                        Remove-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1"
+                        $Registry_Set = $True
+                    }
+                }
+
+                # The install side now writes the UserChoice cascade to HKCU_Classes.
+                # Older installs put it under HKCR, so remove from both to cover upgrades.
+                $PS1_UserChoice = "$HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ps1\UserChoice"
+                if (Test-Path -Path $PS1_UserChoice) {
+                    $Get_UserChoice = (Get-ItemProperty $PS1_UserChoice).ProgID
+                    if ($Get_UserChoice) {
+                        Remove-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Get_UserChoice" -Type "PS1"
+                        Remove-RegItem -Sub_Reg_Path "$Get_UserChoice" -Type "PS1"
+                        $Registry_Set = $True
+                    }
+                }
             }
+        } catch {
+            Write-LogMessage -Message_Type "WARNING" -Message "Failed to remove PS1 registry entries: $($_.Exception.Message)"
         }
         if ($Registry_Set -eq $False) {
             Write-LogMessage -Message_Type "WARNING" -Message "Couldn´t remove the correct registry keys. You probably don´t have any programs selected as default for .ps1 extension!"

@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2026-05-13
+### Fixed
+- Fixed `Add_Structure.ps1` not adding the ps1 context menu when the UserChoice ProgID has no `Shell` subkey in HKCR (e.g. after removing PowerShell ISE the gate `Test-Path "$HKCR_UserChoice_Key\Shell"` returned `$False` and the menu was silently skipped). The cascade is now written to `HKCU\Software\Classes\<ProgID>\Shell` so the menu shows up via the merged HKCR view even without a machine-wide entry, and the whole block is wrapped in try/catch with a null guard on the UserChoice ProgID. Fixes [#20]https://github.com/Joly0/Run-in-Sandbox/issues/20
+- Mirrored the above ps1 UserChoice fix in `Remove_Structure.ps1` so the uninstall removes the entries from both the new `HKCU_Classes\<ProgID>\Shell` location and the legacy HKCR one for older installs
+- Fixed Intunewin context menu failing with `Cannot dot-source this command because it was defined in a different language mode` when AppLocker enforces ConstrainedLanguage on scripts under `C:\ProgramData\Run_in_Sandbox\`. The registry verb command now invokes `RunInSandbox.ps1` via `-Command "& '...'"` instead of `-File`, which internally dot-sources and triggers the language mode mismatch
+- Fixed Intunewin install dialog silently auto-closing on some locked-down Windows 11 builds (focus-stealing prevention / ASR rules can tear down the WPF/MahApps window before the `+` click handler runs). Added a `Windows.Forms` InputBox fallback that takes over when the WPF dialog produces no install command
+- Fixed `IntuneWin_Install.ps1` silently exiting inside the sandbox when no install command was captured. Replaced the silent `EXIT` with visible MessageBoxes so the reason is shown on the sandbox desktop
+
+
 ## 2026-04-30a
 ### Fixed
 - Fixed regression bug with previous bug fix, should finally solve [#18]https://github.com/Joly0/Run-in-Sandbox/issues/18

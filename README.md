@@ -86,6 +86,26 @@ This method allows you to use the parameters "-NoCheckpoint" to skip creation of
 - Run Add_Structure.ps1 **with admin rights**
 <br/>
 
+## Running with AppLocker / security baselines
+
+If you are running a hardened Windows install (for example the [OpenIntuneBaseline](https://github.com/SkipToTheEndpoint/OpenIntuneBaseline) or any other configuration that ships AppLocker script rules), Run-in-Sandbox will run into two related problems:
+- Some of the scripts under `C:\ProgramData\Run_in_Sandbox\` get blocked outright (you will see them in the AppLocker event log)
+- The ones that are not blocked get forced into **ConstrainedLanguage** mode, which breaks the WPF/MahApps dialogs (Intunewin, EXE params, etc.) and can cause errors like `Cannot dot-source this command because it was defined in a different language mode`
+
+Thanks to [@ak47uk](https://github.com/ak47uk) for tracking this down. The fix is to whitelist the install folder in AppLocker's Scripts collection. Add the following rule to your `Scripts.xml`:
+
+```xml
+<FilePathRule Id="e23de120-6c05-455a-b585-72939a592234" Name="Run In Sandbox" Description="Whitelists Run In Sandbox scripts" UserOrGroupSid="S-1-1-0" Action="Allow">
+  <Conditions>
+    <FilePathCondition Path="C:\PROGRAMDATA\RUN_IN_SANDBOX\*" />
+  </Conditions>
+</FilePathRule>
+```
+
+After deploying the updated AppLocker policy, the scripts run in `FullLanguage` mode again and the context menus / dialogs behave normally.
+<br/>
+<br/>
+
 ## Star History
 
 [![Star History Chart](https://api.star-history.com/svg?repos=Joly0/Run-in-Sandbox&type=Date)](https://www.star-history.com/#Joly0/Run-in-Sandbox&Date)

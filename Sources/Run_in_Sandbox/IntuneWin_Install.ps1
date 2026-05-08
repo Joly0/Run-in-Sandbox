@@ -2,11 +2,29 @@ param (
     [String]$Intunewin_Content_File = "C:\Run_in_Sandbox\temp\Intunewin_Folder.txt",
     [String]$Intunewin_Command_File = "C:\Run_in_Sandbox\temp\Intunewin_Install_Command.txt"
 )
-if (-not (Test-Path $Intunewin_Content_File) ) {
-	EXIT
+
+# Surface a clear MessageBox in the sandbox when the host-side dialog produced
+# no install command - the orchestrator runs us via ServiceUI -> explorer.exe,
+# so the dialog is visible on the sandbox desktop instead of silently exiting.
+[System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+
+function Show-SkipDialog {
+    param([string]$Reason)
+    [System.Windows.Forms.MessageBox]::Show(
+        "$Reason`r`nThe Intunewin install was skipped.",
+        "Run-in-Sandbox: Intunewin install skipped",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Warning
+    ) | Out-Null
 }
-if (-not (Test-Path $Intunewin_Command_File) ) {
-	EXIT
+
+if (-not (Test-Path $Intunewin_Content_File)) {
+    Show-SkipDialog -Reason "Intunewin_Folder.txt is missing - the dialog on the host did not run."
+    EXIT
+}
+if (-not (Test-Path $Intunewin_Command_File)) {
+    Show-SkipDialog -Reason "No install command was provided. The dialog on the host either did not appear or was closed without input."
+    EXIT
 }
 
 $Sandbox_Folder = "C:\Run_in_Sandbox"
@@ -29,6 +47,11 @@ $ShowErrors = ($Hide_Powershell -eq "False")
 $ScriptPath = Get-Content -Raw $Intunewin_Content_File
 $Command = Get-Content -Raw $Intunewin_Command_File
 $Command = $Command.replace('"','')
+
+if (-not $Command.Trim()) {
+    Show-SkipDialog -Reason "Install command was empty."
+    EXIT
+}
 
 $FileName = (Get-Item $ScriptPath).BaseName
 

@@ -169,32 +169,37 @@ if ($Add_PS1 -eq $True) {
         $Registry_Set = $False
         Write-LogMessage -Message_Type "INFO" -Message "Running on Windows 11"
 
-        if (Test-Path -Path $HKCU_Classes) {
-            $Default_PS1_HKCU = "$HKCU_Classes\.ps1"
-            $OpenWithProgids_Key = "$Default_PS1_HKCU\OpenWithProgids"
-            if (Test-Path -Path $OpenWithProgids_Key) {
-                $Get_OpenWithProgids_Default_Value = (Get-Item -Path $OpenWithProgids_Key).Property
-                ForEach ($Prop in $Get_OpenWithProgids_Default_Value) {
-                    Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1Basic" -Entry_Name "PS1 as user" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
-                    Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1System" -Entry_Name "PS1 as system" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
-                    Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1Params" -Entry_Name "PS1 with Parameters" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+        try {
+            if (Test-Path -Path $HKCU_Classes) {
+                $Default_PS1_HKCU = "$HKCU_Classes\.ps1"
+                $OpenWithProgids_Key = "$Default_PS1_HKCU\OpenWithProgids"
+                if (Test-Path -Path $OpenWithProgids_Key) {
+                    $Get_OpenWithProgids_Default_Value = (Get-Item -Path $OpenWithProgids_Key).Property
+                    ForEach ($Prop in $Get_OpenWithProgids_Default_Value) {
+                        Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1Basic" -Entry_Name "PS1 as user" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+                        Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1System" -Entry_Name "PS1 as system" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+                        Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Prop" -Type "PS1Params" -Entry_Name "PS1 with Parameters" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+                        $Registry_Set = $True
+                    }
                 }
-                $Registry_Set = $True
-            }
 
-            # ADDING CONTEXT MENU DEPENDING OF THE USERCHOICE
-            # The userchoice for PS1 is located in: HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ps1\UserChoice
-            $PS1_UserChoice = "$HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ps1\UserChoice"
-            $Get_UserChoice = (Get-ItemProperty -Path $PS1_UserChoice).ProgID
-
-            $HKCR_UserChoice_Key = "Registry::HKEY_CLASSES_ROOT\$Get_UserChoice"
-            $PS1_Shell_Registry_Key = "$HKCR_UserChoice_Key\Shell"
-            if (Test-Path -Path $PS1_Shell_Registry_Key) {
-                Add-RegItem -Sub_Reg_Path "$Get_UserChoice" -Type "PS1Basic" -Entry_Name "PS1 as user" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
-                Add-RegItem -Sub_Reg_Path "$Get_UserChoice" -Type "PS1System" -Entry_Name "PS1 as system" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
-                Add-RegItem -Sub_Reg_Path "$Get_UserChoice" -Type "PS1Params" -Entry_Name "PS1 with Parameters" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
-                $Registry_Set = $True
+                # ADDING CONTEXT MENU UNDER THE USERCHOICE PROGID
+                # The userchoice for PS1 is located in: HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ps1\UserChoice
+                # Write to HKCU_Classes\<ProgID>\Shell\... so the menu shows up via the
+                # merged HKCR view even when the ProgID has no machine-wide entry
+                $PS1_UserChoice = "$HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.ps1\UserChoice"
+                if (Test-Path -Path $PS1_UserChoice) {
+                    $Get_UserChoice = (Get-ItemProperty -Path $PS1_UserChoice).ProgID
+                    if ($Get_UserChoice) {
+                        Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Get_UserChoice" -Type "PS1Basic" -Entry_Name "PS1 as user" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+                        Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Get_UserChoice" -Type "PS1System" -Entry_Name "PS1 as system" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+                        Add-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path "$Get_UserChoice" -Type "PS1Params" -Entry_Name "PS1 with Parameters" -Info_Type "PS1" -MainMenuLabel "Run PS1 in Sandbox" -MainMenuSwitch
+                        $Registry_Set = $True
+                    }
+                }
             }
+        } catch {
+            Write-LogMessage -Message_Type "WARNING" -Message "Failed to set PS1 registry entries: $($_.Exception.Message)"
         }
         if ($Registry_Set -eq $False) {
             Write-LogMessage -Message_Type "WARNING" -Message "Couldn´t set the correct registry keys. You probably don´t have any programs selected as default for .ps1 extension!"
