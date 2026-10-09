@@ -93,7 +93,7 @@ function Get-LatestVersionFromBranch {
     [CmdletBinding()]
     param([string]$EffectiveBranch)
     try {
-        $url = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$EffectiveBranch/version.json"
+        $url = "https://raw.githubusercontent.com/$Global:Repo_Owner/$Global:Repo_Name/$EffectiveBranch/version.json"
         $data = Invoke-RestMethod -Uri $url -UseBasicParsing -TimeoutSec 15
         return $data.version
     } catch {
@@ -127,7 +127,8 @@ function Get-VersionJson {
         $extractedVersion = (Get-Date).ToString("yyyy-MM-dd")
     }
 
-    @{ version = $extractedVersion; branch = $EffectiveBranch } |
+    # repoOwner/repoName let later updates without -RepoOwner/-RepoName stay on the same repository
+    [ordered]@{ version = $extractedVersion; branch = $EffectiveBranch; repoOwner = $Global:Repo_Owner; repoName = $Global:Repo_Name } |
         ConvertTo-Json |
         Set-Content (Join-Path $RunFolder "version.json")
 }

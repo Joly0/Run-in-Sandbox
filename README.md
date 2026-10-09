@@ -51,6 +51,8 @@ The installer supports the following optional parameters:
 | `-Branch <name>` | Install from a specific branch (default: `master`, or your currently installed branch for updates) |
 | `-DeepClean` | Performs a deep-clean of legacy registry entries before installation. Removes old context menu entries (takes 5-10 minutes) |
 | `-NoCheckpoint` | Skips creation of a system restore point during installation |
+| `-RepoOwner <name>` | Install from another GitHub owner, e.g. a fork (default: `Joly0`, or the owner of your current installation for updates) |
+| `-RepoName <name>` | Install from another repository name (default: `Run-in-Sandbox`, or the repository of your current installation for updates) |
 
 **Examples:**
 ```powershell
@@ -62,6 +64,9 @@ iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Ins
 
 # Combine multiple parameters
 iex "& { $(irm https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1) } -Branch dev -DeepClean -NoCheckpoint"
+
+# Install from a fork (later updates stay on that fork)
+iex "& { $(irm https://raw.githubusercontent.com/<owner>/Run-in-Sandbox/master/Install_Run-in-Sandbox.ps1) } -RepoOwner <owner>"
 ```
 
 -   You will see the process being started. You will probably be asked to grant admin rights if not started as admin.

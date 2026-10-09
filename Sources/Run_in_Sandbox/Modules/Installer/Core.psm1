@@ -71,7 +71,12 @@ function Invoke-DeepCleanIfRequested {
         Write-Verbose "Invoke-DeepCleanIfRequested: Found $($sfaPaths.Count) paths in SystemFileAssociations"
 
         Write-Verbose "Invoke-DeepCleanIfRequested: Getting current user SID for HKCU_Classes"
-        $currentUserSid = (Get-ChildItem -Path Registry::\HKEY_USERS | Where-Object { Test-Path -Path "$($_.pspath)\Volatile Environment" } | ForEach-Object { (Get-ItemProperty -Path "$($_.pspath)\Volatile Environment") }).PSParentPath.split("\")[-1]
+        # Prefer the SID resolved by Environment.psm1 (handles UAC with a different
+        # admin account and multiple logged-on users)
+        $currentUserSid = $Global:Current_User_SID
+        if (-not $currentUserSid) {
+            $currentUserSid = (Get-ChildItem -Path Registry::\HKEY_USERS | Where-Object { Test-Path -Path "$($_.pspath)\Volatile Environment" } | ForEach-Object { (Get-ItemProperty -Path "$($_.pspath)\Volatile Environment") }).PSParentPath.split("\")[-1]
+        }
         $hkcuClassesPath = "HKEY_USERS\$currentUserSid" + "_Classes"
         Write-Verbose "Invoke-DeepCleanIfRequested: HKCU_Classes path = $hkcuClassesPath"
 
@@ -87,7 +92,7 @@ function Invoke-DeepCleanIfRequested {
         Write-Verbose "Invoke-DeepCleanIfRequested: Found $($hkcuSoftwarePaths.Count) paths in HKCU\Software\Classes"
         
         Write-Verbose "Invoke-DeepCleanIfRequested: Total paths before filtering: $($registryPaths.Count)"
-        $registryPaths = $registryPaths | Where-Object { $_ -notlike "HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
+        $registryPaths = $registryPaths | Where-Object { $_ -notlike "REGISTRY::HKEY_CLASSES_ROOT\SystemFileAssociations\SystemFileAssociations*" }
         $registryPaths = $registryPaths | Select-Object -Unique | Sort-Object
         Write-Verbose "Invoke-DeepCleanIfRequested: Final count of unique paths to remove: $($registryPaths.Count)"
 
@@ -128,24 +133,39 @@ function Install-PackageArchive {
     [CmdletBinding()]
     param([string]$EffectiveBranch)
 
-    $zipUrl = "https://github.com/Joly0/Run-in-Sandbox/archive/refs/heads/$EffectiveBranch.zip"
+    $zipUrl = "https://github.com/$Global:Repo_Owner/$Global:Repo_Name/archive/refs/heads/$EffectiveBranch.zip"
     $tempPath = [IO.Path]::GetTempPath()
-    $zipPath = Join-Path $tempPath "Run-in-Sandbox-$EffectiveBranch.zip"
-    $extractPath = Join-Path $tempPath "Run-in-Sandbox-$EffectiveBranch"
-
-    if (Test-Path $extractPath) {
-        Write-Verbose "Removing existing extracted folder..."
-        Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    # Branch names may contain "/" (e.g. feature/x)
+    $zipPath = Join-Path $tempPath ("Run-in-Sandbox-{0}.zip" -f ($EffectiveBranch -replace '[\\/]', '-'))
 
     try {
-        Write-Verbose ("Downloading from branch '{0}'..." -f $EffectiveBranch)
+        Write-Verbose ("Downloading from {0}/{1}, branch '{2}'..." -f $Global:Repo_Owner, $Global:Repo_Name, $EffectiveBranch)
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $zipUrl -OutFile $zipPath -UseBasicParsing -TimeoutSec 120
         $ProgressPreference = 'Continue'
         Write-Verbose "Download completed: $zipPath"
     } catch {
         throw "Download failed: $($_.Exception.Message)"
+    }
+
+    # GitHub names the top-level folder of the archive <repo>-<branch> ("/" -> "-"),
+    # so read it from the archive instead of assuming Run-in-Sandbox-<branch>
+    try {
+        Add-Type -AssemblyName System.IO.Compression.FileSystem
+        $zipArchive = [IO.Compression.ZipFile]::OpenRead($zipPath)
+        try {
+            $topFolder = ($zipArchive.Entries[0].FullName -split '/')[0]
+        } finally {
+            $zipArchive.Dispose()
+        }
+    } catch {
+        throw "Extraction failed: $($_.Exception.Message)"
+    }
+    $extractPath = Join-Path $tempPath $topFolder
+
+    if (Test-Path $extractPath) {
+        Write-Verbose "Removing existing extracted folder..."
+        Remove-Item -Path $extractPath -Recurse -Force -ErrorAction SilentlyContinue
     }
 
     try {
@@ -185,6 +205,11 @@ function Backup-CustomStartupScripts {
 
     $installedStartupDir = Join-Path $RunFolder "\startup-scripts"
     if (Test-Path $installedStartupDir) {
+        $script:customScriptsBackupDir = Join-Path ([IO.Path]::GetTempPath()) "RunInSandbox_CustomStartupScripts"
+        if (Test-Path $script:customScriptsBackupDir) {
+            Remove-Item -Path $script:customScriptsBackupDir -Recurse -Force -ErrorAction SilentlyContinue
+        }
+        New-Item -ItemType Directory -Path $script:customScriptsBackupDir -Force | Out-Null
         Get-ChildItem -Path $installedStartupDir -File |
             Where-Object { $DefaultNames -notcontains $_.Name } |
             ForEach-Object {
@@ -204,7 +229,11 @@ function Remove-OldInstallIfDeepClean {
 
     try { Backup-CustomStartupScripts -RunFolder $RunFolder -DefaultNames $DefaultNames } catch {}
     if (Test-Path $RunFolder) {
-        try { Remove-Item -Path $RunFolder -Recurse -Force } catch {}
+        # Keep the backup folder created by New-InstallBackup - the installer
+        # still points the user to it if anything fails afterwards
+        Get-ChildItem -Path $RunFolder | Where-Object { $_.Name -ne "backup" } | ForEach-Object {
+            try { Remove-Item -LiteralPath $_.FullName -Recurse -Force } catch {}
+        }
     }
     New-Item -ItemType Directory -Path $RunFolder -Force | Out-Null
 }
@@ -266,7 +295,9 @@ function Update-CoreFiles {
                 # If destination directory exists, sync contents instead of copying the whole directory
                 if (Test-Path $destPath) {
                     # Sync the contents of the directory
-                    Get-ChildItem -Path $_.FullName -Recurse | ForEach-Object {
+                    # Files only - Copy-Item of a directory onto an existing one
+                    # would create a nested, empty copy of it (Modules\Shared\Shared)
+                    Get-ChildItem -Path $_.FullName -Recurse -File | ForEach-Object {
                         $relativePath = $_.FullName.Substring($sourceSandboxDir.Length)
                         $finalDestPath = Join-Path $destSandboxDir $relativePath
                         # Ensure parent directory exists

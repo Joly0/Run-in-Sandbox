@@ -82,6 +82,9 @@ if ($Add_Folder -eq $True) {
 
 if ($Add_HTML -eq $True) {
     Remove-RegItem -Sub_Reg_Path "SystemFileAssociations\.html" -Type "HTML" -Key_Label "Run this web link in Sandbox"
+    Remove-RegItem -Sub_Reg_Path "SystemFileAssociations\.htm" -Type "HTML" -Key_Label "Run this web link in Sandbox"
+    Remove-RegItem -Sub_Reg_Path "SystemFileAssociations\.url" -Type "HTML" -Key_Label "Run this URL in Sandbox"
+    # ProgID entries of older versions
     Remove-RegItem -Sub_Reg_Path "MSEdgeHTM" -Type "HTML" -Key_Label "Run this web link in Sandbox"
     Remove-RegItem -Sub_Reg_Path "ChromeHTML" -Type "HTML" -Key_Label "Run this web link in Sandbox"
     Remove-RegItem -Sub_Reg_Path "IE.AssocFile.HTM" -Type "HTML" -Key_Label "Run this web link in Sandbox"
@@ -95,6 +98,7 @@ if ($Add_Intunewin -eq $True) {
 if ($Add_ISO -eq $True) {
     Remove-RegItem -Sub_Reg_Path "Windows.IsoFile" -Type "ISO" -Key_Label "Extract ISO file in Sandbox"
     Remove-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path ".iso" -Type "ISO" -Key_Label "Extract ISO file in Sandbox"
+    Remove-RegItem -Reg_Path "$HKCU_Classes" -Sub_Reg_Path ".img" -Type "ISO" -Key_Label "Extract IMG file in Sandbox"
 }
 
 if ($Add_MSI -eq $True) {
@@ -106,20 +110,20 @@ if ($Add_MSIX -eq $True) {
     
     $MSIX_Shell_Registry_Key = "Registry::HKEY_CLASSES_ROOT\.msix\OpenWithProgids"
     if (Test-Path -Path $MSIX_Shell_Registry_Key) {
-        $Get_Default_Value = (Get-Item -Path $MSIX_Shell_Registry_Key).Property
-        if ($Get_Default_Value) {
-            Remove-RegItem -Sub_Reg_Path "$Get_Default_Value" -Type "MSIX"
-            $Removed_MSIX_ProgIds += $Get_Default_Value
-        } 
-    }
-    $Default_MSIX_HKCU = "$HKCU_Classes\.msix"
-    if (Test-Path -Path $Default_MSIX_HKCU) {
-        $Get_Default_Value = (Get-Item -Path "$Default_MSIX_HKCU\OpenWithProgids").Property
-        # Only remove if this ProgID wasn't already removed from HKCR
-        if ($Get_Default_Value -and ($Get_Default_Value -notin $Removed_MSIX_ProgIds)) {
-            Remove-RegItem -Reg_Path $HKCU_Classes -Sub_Reg_Path "$Get_Default_Value" -Type "MSIX"
+        ForEach ($ProgId in (Get-Item -Path $MSIX_Shell_Registry_Key).Property) {
+            Remove-RegItem -Sub_Reg_Path "$ProgId" -Type "MSIX"
+            $Removed_MSIX_ProgIds += $ProgId
         }
-    } 
+    }
+    $Default_MSIX_HKCU_ProgIds = "$HKCU_Classes\.msix\OpenWithProgids"
+    if (Test-Path -Path $Default_MSIX_HKCU_ProgIds) {
+        ForEach ($ProgId in (Get-Item -Path $Default_MSIX_HKCU_ProgIds).Property) {
+            # Only remove if this ProgID wasn't already removed from HKCR
+            if ($ProgId -notin $Removed_MSIX_ProgIds) {
+                Remove-RegItem -Reg_Path $HKCU_Classes -Sub_Reg_Path "$ProgId" -Type "MSIX"
+            }
+        }
+    }
 }
 
 if ($Add_MultipleApp -eq $True) {
@@ -192,6 +196,12 @@ if ($Add_ZIP -eq $True) {
     if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\WinRAR.ZIP") {
         Remove-RegItem -Sub_Reg_Path "WinRAR.ZIP" -Type "ZIP" -Key_Label "Extract ZIP (WinRAR) in Sandbox"
     }
+
+    # Entry on the ProgID of the default .zip application (7-Zip, PeaZip, WinZip, ...)
+    $ZIP_UserChoice_ProgId = Get-ZipUserChoiceProgId
+    if ($ZIP_UserChoice_ProgId) {
+        Remove-RegItem -Sub_Reg_Path "$ZIP_UserChoice_ProgId" -Type "ZIP" -Key_Label "Extract ZIP in Sandbox"
+    }
     
     # Only try to remove 7z entries if they exist
     if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\Applications\7zFM.exe") {
@@ -210,7 +220,7 @@ if ($Add_ZIP -eq $True) {
 
 if (Test-Path -Path $Run_in_Sandbox_Folder) {
     try {
-        Remove-Item $Run_in_Sandbox_Folder -Recurse -Force
+        Remove-Item $Run_in_Sandbox_Folder -Recurse -Force -ErrorAction Stop
         Write-LogMessage -Message_Type "Success" -Message "Run-in-Sandbox has been removed"
     } catch {
         Write-LogMessage -Message_Type "ERROR" -Message "Run-in-Sandbox Folder couldnt be removed"

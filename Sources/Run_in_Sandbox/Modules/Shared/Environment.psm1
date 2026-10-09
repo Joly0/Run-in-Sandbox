@@ -13,6 +13,11 @@ $Global:Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $Global:Sandbox_Icon = "$env:ProgramData\Run_in_Sandbox\sandbox.ico"
 $Global:XML_Config = "$Global:Run_in_Sandbox_Folder\Sandbox_Config.xml"
 
+# GitHub repository used for installs and updates - set by Install_Run-in-Sandbox.ps1
+# (-RepoOwner/-RepoName or version.json), upstream otherwise
+if (-not $Global:Repo_Owner) { $Global:Repo_Owner = "Joly0" }
+if (-not $Global:Repo_Name) { $Global:Repo_Name = "Run-in-Sandbox" }
+
 # Logging variables
 $Global:TEMP_Folder = $env:temp
 $Global:Log_File = "$Global:TEMP_Folder\RunInSandbox_Install.log"
@@ -108,7 +113,7 @@ function Invoke-AsAdmin {
 
     # Simplified, reliable elevation: download current branch installer to temp and re-run with same parameters.
     $TempScript = Join-Path ([IO.Path]::GetTempPath()) "Install_Run-in-Sandbox.Elevated.ps1"
-    $InstallerUrl = "https://raw.githubusercontent.com/Joly0/Run-in-Sandbox/$EffectiveBranch/Install_Run-in-Sandbox.ps1"
+    $InstallerUrl = "https://raw.githubusercontent.com/$Global:Repo_Owner/$Global:Repo_Name/$EffectiveBranch/Install_Run-in-Sandbox.ps1"
 
     try {
         Write-Verbose "Downloading elevated installer from: $InstallerUrl"
@@ -128,6 +133,11 @@ function Invoke-AsAdmin {
     if ($DeepClean)    { $argsList += "-DeepClean" }
     if ($EffectiveBranch) {
         $argsList += @("-Branch", $EffectiveBranch)
+    }
+    # Only forwarded for non-default repositories - installers without these
+    # parameters (older upstream versions) would otherwise fail to start
+    if ($Global:Repo_Owner -ne "Joly0" -or $Global:Repo_Name -ne "Run-in-Sandbox") {
+        $argsList += @("-RepoOwner", $Global:Repo_Owner, "-RepoName", $Global:Repo_Name)
     }
     # Forward the pre-elevation user SID so the elevated process targets the
     # original user's HKCU instead of the admin account that answered UAC.

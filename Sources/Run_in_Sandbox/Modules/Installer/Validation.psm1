@@ -62,7 +62,8 @@ function Test-ForSandbox {
     $sandboxState = $null
 
     try {
-        $sandboxState = (Get-WindowsOptionalFeature -Online -ErrorAction SilentlyContinue |
+        # -ErrorAction Stop, otherwise the catch block below is never reached
+        $sandboxState = (Get-WindowsOptionalFeature -Online -ErrorAction Stop |
             Where-Object { $_.FeatureName -eq "Containers-DisposableClientVM" }).State
     } catch {
         # If Get-WindowsOptionalFeature fails (e.g. TrustedInstaller disabled), fall back to exe check
@@ -119,7 +120,7 @@ function Test-Prerequisites {
     Write-LogMessage -Message_Type "SUCCESS" -Message "RAM check passed: $ramGB GB available"
 
     # Disk space check - need at least 1 GB free on system drive
-    $diskFreeGB = [math]::Round((Get-PSDrive -Name C).Free / 1GB, 2)
+    $diskFreeGB = [math]::Round((Get-PSDrive -Name $env:SystemDrive.TrimEnd(':')).Free / 1GB, 2)
     if ($diskFreeGB -lt 1) {
         Write-LogMessage -Message_Type "ERROR" -Message "Not enough free disk space: $diskFreeGB GB found, at least 1 GB required"
         [System.Windows.Forms.MessageBox]::Show("Not enough free disk space: $diskFreeGB GB found, at least 1 GB required.")

@@ -44,9 +44,10 @@ if (Test-Path $ConfigPath) {
 # Error handling will show issues to user when Hide_Powershell is False
 $CmdSwitch = "/c"
 $ShowErrors = ($Hide_Powershell -eq "False")
-$ScriptPath = Get-Content -Raw $Intunewin_Content_File
+# Trim, the dialog writes the content with a trailing new line in some cases
+$ScriptPath = (Get-Content -Raw $Intunewin_Content_File).Trim()
 $Command = Get-Content -Raw $Intunewin_Command_File
-$Command = $Command.replace('"','')
+$Command = $Command.replace('"','').Trim()
 
 if (-not $Command.Trim()) {
     Show-SkipDialog -Reason "Install command was empty."

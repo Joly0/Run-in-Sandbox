@@ -13,6 +13,10 @@ If (Test-Path -LiteralPath "$PSScriptRoot\..\Shared\Environment.psm1") {
     Import-Module "$PSScriptRoot\..\Shared\Environment.psm1" -Force -Global
 }
 
+# Keys already exported during this run - several context menu entries share
+# the same base key (e.g. the three PS1 entries) and only need one backup
+$script:Exported_Keys = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+
 # Function to export registry configuration
 function Export-RegConfig {
     param (
@@ -22,9 +26,13 @@ function Export-RegConfig {
         [string] $Sub_Reg_Path
     )
     
-    if ($Exported_Keys -contains $Reg_Path) {
-        $Exported_Keys.Add($Reg_Path)
-    } else {
+    if (-not $script:Exported_Keys.Add($Reg_Path)) {
+        return
+    }
+    
+    # Nothing to back up for keys that do not exist yet
+    if (-not (Test-Path -LiteralPath "Registry::$Reg_Path")) {
+        Write-Verbose "Export-RegConfig: Key does not exist, skipping backup: $Reg_Path"
         return
     }
     
@@ -34,16 +42,22 @@ function Export-RegConfig {
     
     Write-LogMessage -Message_Type "INFO" -Message "Exporting registry keys"
     
-    $Backup_Path = $Backup_Folder + "\" + "Backup_" + $Type
-    if ($Sub_Reg_Path) {
-        $Backup_Path = $Backup_Path + "_" + $Sub_Reg_Path
+    # Named after the full key so HKCR and HKCU_Classes backups of the same sub
+    # key do not overwrite each other; "\" must not create sub folders
+    $Backup_Name = ("Backup_" + $Reg_Path) -replace '[\\/:*?"<>|]', '_'
+    $Backup_Path = Join-Path $Backup_Folder ($Backup_Name + ".reg")
+    
+    # Keep the backup from the first installation - on updates the key already
+    # contains the Run-in-Sandbox entries
+    if (Test-Path -LiteralPath $Backup_Path) {
+        Write-Verbose "Export-RegConfig: Backup already exists, keeping it: $Backup_Path"
+        return
     }
-    $Backup_Path = $Backup_Path + ".reg"
     
     reg export $Reg_Path $Backup_Path /y > $null 2>&1
 
     # Check if the command ran successfully
-    if ($?) {
+    if ($LASTEXITCODE -eq 0) {
         Write-LogMessage -Message_Type "SUCCESS" -Message "Exported `"$Reg_Path`" to `"$Backup_Path`""
     } else {
         Write-LogMessage -Message_Type "ERROR" -Message "Failed to export `"$Reg_Path`""
@@ -164,7 +178,9 @@ function Add-RegItem {
     Write-Verbose "Add-RegItem: Shell_Registry_Key = $Shell_Registry_Key"
     Write-Verbose "Add-RegItem: Key_Label_Path = $Key_Label_Path"
     
-    Export-RegConfig -Reg_Path $($Base_Registry_Key.Split("::")[-1]) -Type $Type -Sub_Reg_Path $Sub_Reg_Path -ErrorAction Continue
+    # reg.exe needs a plain key name (HKEY_...\...), not a PowerShell provider path
+    $Reg_Export_Path = $Base_Registry_Key -replace '^Registry::', '' -replace '^HKCU:', 'HKEY_CURRENT_USER'
+    Export-RegConfig -Reg_Path $Reg_Export_Path -Type $Type -Sub_Reg_Path $Sub_Reg_Path -ErrorAction Continue
     
     try {
         # Log the root registry path to the specified file
@@ -435,7 +451,22 @@ function Find-RegistryIconPaths {
     return $matchingPaths
 }
 
+# Returns the ProgID of the users default application for .zip files, if it is not one
+# of the ProgIDs that get their entry anyway (Explorer's CompressedFolder, WinRAR.ZIP)
+function Get-ZipUserChoiceProgId {
+    $ZIP_UserChoice = "$HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.zip\UserChoice"
+    if (-not (Test-Path -Path $ZIP_UserChoice)) {
+        return $null
+    }
+    $ProgId = (Get-ItemProperty -Path $ZIP_UserChoice -ErrorAction SilentlyContinue).ProgID
+    if ([string]::IsNullOrEmpty($ProgId) -or ($ProgId -in @("CompressedFolder", "WinRAR.ZIP"))) {
+        return $null
+    }
+    return $ProgId
+}
+
 Export-ModuleMember -Function @(
+    'Get-ZipUserChoiceProgId',
     'Export-RegConfig',
     'Add-RegItem',
     'Remove-RegItem',

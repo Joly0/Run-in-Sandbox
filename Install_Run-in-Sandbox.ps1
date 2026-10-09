@@ -18,6 +18,14 @@
 .PARAMETER NoCheckpoint
     Skips creation of a system restore point during installation.
 
+.PARAMETER RepoOwner
+    GitHub owner of the repository to install from (e.g. a fork). Defaults to
+    'Joly0' for new installations or the owner stored in version.json for updates.
+
+.PARAMETER RepoName
+    GitHub repository name to install from. Defaults to 'Run-in-Sandbox' for new
+    installations or the name stored in version.json for updates.
+
 .PARAMETER OriginalUserSid
     Internal use only. Carries the SID of the non-elevated user across the UAC
     boundary so HKCU writes target the original user (not the admin account
@@ -28,12 +36,17 @@
 
 .EXAMPLE
     .\Install_Run-in-Sandbox.ps1 -Branch dev -DeepClean
+
+.EXAMPLE
+    .\Install_Run-in-Sandbox.ps1 -RepoOwner myuser -RepoName Run-in-Sandbox
 #>
 [CmdletBinding()]
 param (
     [switch]$NoCheckpoint,
     [switch]$DeepClean,
-    [string]$Branch = "master",
+    [string]$Branch,
+    [string]$RepoOwner,
+    [string]$RepoName,
     [string]$OriginalUserSid
 )
 
@@ -63,11 +76,35 @@ if ($VerbosePreference -eq 'Continue') {
 # Configuration
 # ======================================================================================
 $DefaultRepoOwner = "Joly0"
-$RepoName = "Run-in-Sandbox"
+$DefaultRepoName = "Run-in-Sandbox"
 
 # Globals
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $IsInstalled = Test-Path $Run_in_Sandbox_Folder
+
+# Without -Branch/-RepoOwner/-RepoName, updates stay on the installed branch and
+# repository (version.json), new installs use master of Joly0/Run-in-Sandbox.
+# Resolved here already because the modules below are downloaded from there.
+$InstalledVersionData = $null
+$InstalledVersionJson = Join-Path $Run_in_Sandbox_Folder "version.json"
+if (Test-Path $InstalledVersionJson) {
+    try {
+        $InstalledVersionData = Get-Content $InstalledVersionJson -Raw | ConvertFrom-Json
+    } catch { }
+}
+if (-not $Branch) {
+    $Branch = if ($InstalledVersionData.branch) { $InstalledVersionData.branch } else { "master" }
+}
+if (-not $RepoOwner) {
+    $RepoOwner = if ($InstalledVersionData.repoOwner) { $InstalledVersionData.repoOwner } else { $DefaultRepoOwner }
+}
+if (-not $RepoName) {
+    $RepoName = if ($InstalledVersionData.repoName) { $InstalledVersionData.repoName } else { $DefaultRepoName }
+}
+# Read by the modules (Environment.psm1 falls back to Joly0/Run-in-Sandbox)
+$Global:Repo_Owner = $RepoOwner
+$Global:Repo_Name = $RepoName
+Write-Verbose "Repository: $RepoOwner/$RepoName"
 
 # ======================================================================================
 # Function to dynamically load modules from GitHub
@@ -75,8 +112,7 @@ $IsInstalled = Test-Path $Run_in_Sandbox_Folder
 function Import-ModuleFromGitHub {
     param(
         [string]$ModulePath,
-        [string]$BranchName,
-        [string]$RepoOwner = $DefaultRepoOwner
+        [string]$BranchName
     )
     
     $moduleUrl = "https://raw.githubusercontent.com/$RepoOwner/$RepoName/$BranchName/$ModulePath"
@@ -114,34 +150,23 @@ function Import-ModuleFromGitHub {
 # ======================================================================================
 # Load required modules from GitHub
 # ======================================================================================
-$moduleLoadSuccess = $true
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Logging.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Version.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Environment.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Shared/Config.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Core.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Registry.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-$moduleLoadSuccess = $moduleLoadSuccess -and (Import-ModuleFromGitHub -ModulePath "Sources/Run_in_Sandbox/Modules/Installer/Validation.psm1" -BranchName $Branch -RepoOwner $DefaultRepoOwner)
-
-if (-not $moduleLoadSuccess) {
-    Write-Host "Failed to load modules from GitHub. This might be due to network issues or an invalid branch." -ForegroundColor Red
-    Write-Host "Falling back to CommonFunctions.ps1..." -ForegroundColor Yellow
-    
-    # Fallback to CommonFunctions.ps1
-    try {
-        $commonFunctionsUrl = "https://raw.githubusercontent.com/$DefaultRepoOwner/$RepoName/$Branch/CommonFunctions.ps1"
-        Write-Verbose ("Loading CommonFunctions from: {0}" -f $commonFunctionsUrl)
-        $commonFunctionsContent = Invoke-RestMethod -Uri $commonFunctionsUrl -UseBasicParsing -TimeoutSec 45
-        . ([ScriptBlock]::Create($commonFunctionsContent)) # dot-source into script scope
-        Write-Verbose "CommonFunctions loaded from GitHub."
-    } catch {
-        $localCommonFunctionsPath = Join-Path $Run_in_Sandbox_Folder "CommonFunctions.ps1"
-        if (Test-Path $localCommonFunctionsPath) {
-            . $localCommonFunctionsPath
-            Write-Verbose "CommonFunctions loaded from local path."
-        } else {
-            throw "CommonFunctions.ps1 could not be loaded."
-        }
+$requiredModules = @(
+    "Sources/Run_in_Sandbox/Modules/Shared/Logging.psm1",
+    "Sources/Run_in_Sandbox/Modules/Shared/Version.psm1",
+    "Sources/Run_in_Sandbox/Modules/Shared/Environment.psm1",
+    "Sources/Run_in_Sandbox/Modules/Shared/Config.psm1",
+    "Sources/Run_in_Sandbox/Modules/Installer/Core.psm1",
+    "Sources/Run_in_Sandbox/Modules/Installer/Registry.psm1",
+    "Sources/Run_in_Sandbox/Modules/Installer/Validation.psm1"
+)
+foreach ($modulePath in $requiredModules) {
+    if (-not (Import-ModuleFromGitHub -ModulePath $modulePath -BranchName $Branch)) {
+        # No fallback: CommonFunctions.ps1 lacks most installer functions, and
+        # the package itself is downloaded from GitHub further below anyway
+        Write-Host "Failed to load $modulePath from $RepoOwner/$RepoName (branch '$Branch')." -ForegroundColor Red
+        Write-Host "Check your internet connection and that the repository and branch exist. Run with -Verbose for details." -ForegroundColor Red
+        Read-Host "Press Enter to exit"
+        break script
     }
 }
 
@@ -269,9 +294,9 @@ try {
     }
     Update-CoreFiles @syncParams
     
-    if ($IsInstalled) {
-        Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
-    }
+    # Not tied to $IsInstalled: a deep-clean resets that flag, but is exactly the
+    # case where custom startup scripts were backed up (no-op otherwise)
+    Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
     Get-VersionJson -RunFolder $Run_in_Sandbox_Folder -ExtractPath $extractPath -EffectiveBranch $Branch -LatestVersion $LatestVersion
 
     $valid = Test-Installation -RunFolder $Run_in_Sandbox_Folder

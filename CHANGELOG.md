@@ -5,6 +5,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## 2026-10-09
+### Fixed
+- Fixed `Remove_Structure.ps1` not removing the `.img` context menu added in 2026-08-07
+- Fixed installation aborting when `HKCU\Software\Classes\.msix` exists without an `OpenWithProgids` subkey, and MSIX entries being written to a wrong key when more than one ProgID is registered
+- Fixed "Extract ISO file in Sandbox" pointing the sandbox to the host path of the cached 7-Zip installer (only used when 7-Zip is not installed on the host)
+- Fixed the "Failed to download 7-Zip installer" message never being shown when the download failed and no cached installer existed
+- Fixed the sandbox not starting at all when no classic `notepad.exe.mui` can be found (the Notepad payload is optional now)
+- Fixed application bundles (`.sdbapp`) not finding their files: folders are now mapped to `C:\SBDApp\<folder name>` as expected by `AppBundle_Install.ps1`; `.ps1`/`.vbs` paths with spaces and a missing `Silent_Switch` element are handled
+- Fixed files in folders with `[` or `]` in their name being started from a wrong path in the sandbox
+- Fixed the installer always using `master` for updates instead of the installed branch when `-Branch` is not given
+- Fixed deep-clean updates deleting custom startup scripts and the just created backup folder
+- Fixed update creating nested empty folders (e.g. `Modules\Shared\Shared`)
+- Fixed deep-clean possibly scanning the wrong user's `HKCU_Classes` hive
+- Fixed the Windows Sandbox feature check never reaching its fallback when `Get-WindowsOptionalFeature` fails, and the disk space check assuming drive `C:`
+- Fixed `RunInSandbox_Config.ps1` (`Add_Structure.ps1 -NoSilent`) failing to load its assemblies and XAML when started from another folder
+- Fixed `Remove_Structure.ps1` reporting success although the installation folder could not be removed
+- Fixed the registry backup (`Registry_Backup` folder) never being created: `Export-RegConfig` returned before exporting anything. Each modified key is now exported once, before the first change, keys containing `\` no longer point into a folder that does not exist, HKCR and HKU backups of the same key no longer overwrite each other, and an existing backup is kept on updates
+- Fixed the HTML/URL entry: the path was passed with its double quotes inside single quotes (`-LiteralPath '"C:\..."'`), so `Invoke-Item` never found the file
+- Fixed the HTML entry showing twice for Edge/Chrome users: it is only added to `SystemFileAssociations` now (which applies to every default browser), and `.htm` and `.url` are covered as well. The browser ProgID entries of older versions are still removed on uninstall
+- Fixed the ZIP entry missing when another application (7-Zip, PeaZip, WinZip, ...) is the default for .zip files: it is also added to the ProgID of that application
+- Fixed "Run EXE with switches" breaking on file names with spaces (`EXE_Install.ps1`)
+- Fixed `IntuneWin_Install.ps1` failing when the dialog wrote a trailing new line
+- Fixed application bundles (`.sdbapp`) with another file name than `App_Bundle.sdbapp` not being found by `AppBundle_Install.ps1`
+- Fixed the launch failing for standard users when `_orchestrator.ps1` (installed by the elevated installer) could not be overwritten: it is only written when missing or outdated now, and the existing one is used if that fails. A failing write of `OriginalCommand.txt` reports the path instead of starting a sandbox that does nothing
+- Notepad payload: a missing `notepad.exe.mui` no longer skips the whole payload (only the localized strings are missing then), the 0 byte app execution alias in WindowsApps is not copied any more, and `01-Copy-Notepad.ps1` no longer registers "Edit with Notepad" when no notepad.exe was staged
+- Fixed downloads of branches containing `/` (the extracted folder is read from the archive now)
+- Fixed the installer "falling back" to `CommonFunctions.ps1` when a module could not be downloaded, which lacks most installer functions (`Resolve-Branch`, `Invoke-AsAdmin`, `Write-Info`, ...) and then failed with unrelated errors. It now names the module that failed and exits
+
+### Added
+- The sandbox uses **Notepad++** from the host when it is installed: its folder is mounted read only to `C:\Program Files\Notepad++` (like the host installation of 7-Zip), and inside the sandbox "Edit with Notepad++", "Open Notepad++" on the folder background and the .txt association are registered. Only without Notepad++ the classic Notepad is staged
+- `RunInSandbox.ps1` writes its log to `%TEMP%\RunInSandbox.log` and shows a message box on errors, unknown `-Type` values and a missing .wsb file, instead of failing silently because it is started with `-WindowStyle Hidden`
+- Added `-RepoOwner` and `-RepoName` parameters to `Install_Run-in-Sandbox.ps1` to install from a fork. The repository is stored in `version.json`, so updates stay on it; default is still `Joly0/Run-in-Sandbox`
+
+
 ## 2026-08-07
 ### Added
 - Added .img file to "Run X in Sandbox"-options

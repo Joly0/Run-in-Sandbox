@@ -1,13 +1,14 @@
 [System.Reflection.Assembly]::LoadWithPartialName('presentationframework') 	| out-null
-[System.Reflection.Assembly]::LoadFrom(".\assembly\MahApps.Metro.dll") | out-null
-[System.Reflection.Assembly]::LoadFrom(".\assembly\MahApps.Metro.IconPacks.dll") | out-null
+# Use the script folder - Add_Structure.ps1 -NoSilent starts this script from a different working directory
+[System.Reflection.Assembly]::LoadFrom("$PSScriptRoot\assembly\MahApps.Metro.dll") | out-null
+[System.Reflection.Assembly]::LoadFrom("$PSScriptRoot\assembly\MahApps.Metro.IconPacks.dll") | out-null
 function LoadXml ($global:file1) {
 	$XamlLoader=(New-Object System.Xml.XmlDocument)
 	$XamlLoader.Load($file1)
 	return $XamlLoader
 }
 
-$XamlMainWindow=LoadXml(".\RunInSandbox_Config.xaml")
+$XamlMainWindow=LoadXml("$PSScriptRoot\RunInSandbox_Config.xaml")
 $Reader=(New-Object System.Xml.XmlNodeReader $XamlMainWindow)
 $Form_PS1 = [Windows.Markup.XamlReader]::Load($Reader)
 

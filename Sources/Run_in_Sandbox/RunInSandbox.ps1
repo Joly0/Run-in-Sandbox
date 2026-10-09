@@ -3,6 +3,28 @@
     [Parameter(Mandatory=$true)] [String]$ScriptPath
 )
 
+# The context menu starts this script with "powershell.exe -WindowStyle Hidden", so an error
+# would end it without the user noticing anything. Runtime messages go to their own log
+# (Logging.psm1 keeps an already set $Global:Log_File) and errors are shown in a message box
+$Global:Log_File = Join-Path -Path $env:TEMP -ChildPath "RunInSandbox.log"
+
+function Show-RunError {
+    param ([string]$Message)
+
+    $MyDate = "[{0:MM/dd/yy} {0:HH:mm:ss}]" -f (Get-Date)
+    Add-Content -Path $Global:Log_File -Value "$MyDate - ERROR : $Message" -ErrorAction SilentlyContinue
+    try {
+        [System.Reflection.Assembly]::LoadWithPartialName("System.Windows.Forms") | Out-Null
+        [System.Windows.Forms.MessageBox]::Show("$Message`n`nMore details can be found in `"$Global:Log_File`"", "Run in Sandbox", [System.Windows.Forms.MessageBoxButtons]::OK, [System.Windows.Forms.MessageBoxIcon]::Error) | Out-Null
+    } catch {}
+}
+
+trap {
+    Show-RunError -Message "Run in Sandbox stopped with an error: $($_.Exception.Message)"
+    Add-Content -Path $Global:Log_File -Value "$($_.ScriptStackTrace)" -ErrorAction SilentlyContinue
+    exit 1
+}
+
 #Start-Transcript -Path $(Join-Path -Path $([System.Environment]::GetEnvironmentVariables('Machine').TEMP) -ChildPath "RunInSandbox.log")
 
 $special_char_array = 'é', 'è', 'à', 'â', 'ê', 'û', 'î', 'ä', 'ë', 'ü', 'ï', 'ö', 'ù', 'ò', '~', '!', '@', '#', '$', '%', '^', '&', '+', '=', '}', '{', '|', '<', '>', ';'
@@ -22,8 +44,9 @@ $ScriptPath = [WildcardPattern]::Escape($ScriptPath)
 if ( ($Type -eq "Folder_Inside") -or ($Type -eq "Folder_On") ) {
     $DirectoryName = (Get-Item $ScriptPath).fullname
 } else {
-    $ParentPath = Split-Path -Path "$ScriptPath" -Parent
-    $FolderPath = Split-Path -Path "$ParentPath" -Leaf
+    # Take the folder name from the resolved item - $ScriptPath is wildcard-escaped,
+    # so Split-Path would keep the escape backticks for folders like "Setup [x64]"
+    $FolderPath = (Get-Item $ScriptPath).Directory.Name
     $DirectoryName = (Get-Item $ScriptPath).DirectoryName
     $FileName = (Get-Item $ScriptPath).BaseName
     $Full_FileName = (Get-Item $ScriptPath).Name
@@ -46,6 +69,8 @@ Import-Module "$Run_in_Sandbox_Folder\Modules\Runtime\WSB.psm1" -Force
 Import-Module "$Run_in_Sandbox_Folder\Modules\Runtime\StartupScripts.psm1" -Force
 Import-Module "$Run_in_Sandbox_Folder\Modules\Runtime\UI.psm1" -Force
 Import-Module "$Run_in_Sandbox_Folder\Modules\Runtime\Dialogs.psm1" -Force
+
+Write-LogMessage -Message_Type "INFO" -Message "Started for type `"$Type`" and path `"$ScriptPath`""
 
 $xml = "$Run_in_Sandbox_Folder\Sandbox_Config.xml"
 $my_xml = [xml](Get-Content $xml)
@@ -149,7 +174,8 @@ switch ($Type) {
         New-WSB -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "HTML" {
-        $Startup_Command = $PSRun_Command + " " + "`"Invoke-Item -LiteralPath `'$Full_Startup_Path_Quoted`'`""
+        # Not $Full_Startup_Path_Quoted - its double quotes inside the single quotes would become part of the path
+        $Startup_Command = $PSRun_Command + " " + "`"Invoke-Item -LiteralPath `'$Full_Startup_Path`'`""
 
         $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
@@ -192,7 +218,7 @@ switch ($Type) {
                 EXIT
             }
 
-            $CachedInstaller = "$Run_in_Sandbox_Folder\temp\7zSetup.msi"
+            $CachedInstaller = "$Sandbox_Root_Path\temp\7zSetup.msi"
 
             # Install 7-Zip in sandbox then extract ISO
             $Startup_Command = "$PSRun_Command `"Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i \`"$CachedInstaller\`" /quiet' -Wait; Start-Process -FilePath 'C:\Program Files\7-Zip\7z.exe' -ArgumentList 'x $Full_Startup_Path_Quoted -y -oC:\Users\WDAGUtilityAccount\Desktop\Extracted_ISO' -Wait`""
@@ -279,8 +305,18 @@ switch ($Type) {
         $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
+    default {
+        Show-RunError -Message "The type `"$Type`" is not supported, nothing can be started in the sandbox."
+        exit 1
+    }
 }
 
+if (-not (Test-Path -LiteralPath $Sandbox_File_Path)) {
+    Show-RunError -Message "No sandbox configuration file has been created for type `"$Type`", the sandbox cannot be started."
+    exit 1
+}
+
+Write-LogMessage -Message_Type "INFO" -Message "Starting the sandbox with `"$Sandbox_File_Path`""
 Start-Process -FilePath $Sandbox_File_Path -Wait
 do {
     Start-Sleep -Seconds 1
