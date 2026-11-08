@@ -6,6 +6,7 @@ $dstSys  = "C:\Windows\System32"
 $dst  = "C:\Windows"
 
 $hadError = $false
+$notepadStaged = $false
 
 # 1) Copy notepad.exe if present
 try {
@@ -15,6 +16,7 @@ try {
     if (Test-Path -LiteralPath $srcExe) {
         Copy-Item -LiteralPath $srcExe -Destination $notepadPath -Force
         Copy-Item -LiteralPath $srcExe -Destination $notepadPathSys -Force
+        $notepadStaged = $true
         Write-Host "[Copy-Notepad] notepad.exe copied."
     } else {
         Write-Warning "[Copy-Notepad] Source not found: $srcExe"
@@ -61,6 +63,8 @@ try {
 
 if ($hadError) {
     exit 1
+} elseif (-not $notepadStaged) {
+    exit 0
 } else {
 	reg add "HKEY_CLASSES_ROOT\*\shell\Edit with Notepad" /f
 	reg add "HKEY_CLASSES_ROOT\*\shell\Edit with Notepad" /v "Icon" /t REG_SZ /d "$notepadPath,0" /f

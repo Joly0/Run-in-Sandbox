@@ -134,7 +134,7 @@ foreach ($App in $Apps_to_install) {
 
     if ( ($App_File -like "*.exe*") -or ($App_File -like "*.msi*") ) {
         try {
-            if ($App_SilentSwitch -ne "") {
+            if ($App_SilentSwitch) {
                 $process = Start-Process $App_Full_Path -ArgumentList "$App_SilentSwitch" -Wait -PassThru
             } else {
                 $process = Start-Process $App_Full_Path -Wait -PassThru
@@ -150,7 +150,7 @@ foreach ($App in $Apps_to_install) {
         }
     } elseif ( ($App_File -like "*.ps1*") -or ($App_File -like "*.vbs*") ) {
         try {
-            & { Invoke-Expression ($App_Full_Path) }
+            & $App_Full_Path
             if ($LASTEXITCODE -and $LASTEXITCODE -ne 0) {
                 Show-InstallationError -AppName $App_Name -FilePath $App_Full_Path -ExitCode $LASTEXITCODE
             }
