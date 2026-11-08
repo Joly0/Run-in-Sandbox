@@ -22,8 +22,8 @@ $ScriptPath = [WildcardPattern]::Escape($ScriptPath)
 if ( ($Type -eq "Folder_Inside") -or ($Type -eq "Folder_On") ) {
     $DirectoryName = (Get-Item $ScriptPath).fullname
 } else {
-    $ParentPath = Split-Path -Path "$ScriptPath" -Parent
-    $FolderPath = Split-Path -Path "$ParentPath" -Leaf
+    # $ScriptPath is wildcard-escaped, so take the name from the item
+    $FolderPath = (Get-Item $ScriptPath).Directory.Name
     $DirectoryName = (Get-Item $ScriptPath).DirectoryName
     $FileName = (Get-Item $ScriptPath).BaseName
     $Full_FileName = (Get-Item $ScriptPath).Name
@@ -149,7 +149,7 @@ switch ($Type) {
         New-WSB -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
     }
     "HTML" {
-        $Startup_Command = $PSRun_Command + " " + "`"Invoke-Item -LiteralPath `'$Full_Startup_Path_Quoted`'`""
+        $Startup_Command = $PSRun_Command + " " + "`"Invoke-Item -LiteralPath `'$Full_Startup_Path`'`""
 
         $Startup_Command = Enable-StartupScripts -OriginalCommand $Startup_Command -HidePowershell $Hide_Powershell
         New-WSB -Command_to_Run $Startup_Command -FileName $FileName -DirectoryName $DirectoryName -ScriptPath $ScriptPath -Type $Type
@@ -192,7 +192,7 @@ switch ($Type) {
                 EXIT
             }
 
-            $CachedInstaller = "$Run_in_Sandbox_Folder\temp\7zSetup.msi"
+            $CachedInstaller = "$Sandbox_Root_Path\temp\7zSetup.msi"
 
             # Install 7-Zip in sandbox then extract ISO
             $Startup_Command = "$PSRun_Command `"Start-Process -FilePath 'msiexec.exe' -ArgumentList '/i \`"$CachedInstaller\`" /quiet' -Wait; Start-Process -FilePath 'C:\Program Files\7-Zip\7z.exe' -ArgumentList 'x $Full_Startup_Path_Quoted -y -oC:\Users\WDAGUtilityAccount\Desktop\Extracted_ISO' -Wait`""

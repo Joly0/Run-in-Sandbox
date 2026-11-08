@@ -37,8 +37,22 @@ function New-WSB {
     $Sandbox_ClipboardRedirection = $my_xml.Configuration.ClipboardRedirection
     $Sandbox_MemoryInMB = $my_xml.Configuration.MemoryInMB
     
-    # Prepare Notepad payload
-    Add-NotepadToSandbox -EnforceEnUsFallback
+    # Notepad++ of the host is mapped read only like 7-Zip, Notepad is the fallback
+    $NotepadPlusPlus_Path = Find-HostNotepadPlusPlus
+    if ($NotepadPlusPlus_Path) {
+        $AdditionalMappedFolders += @{
+            HostFolder = Split-Path $NotepadPlusPlus_Path -Parent
+            SandboxFolder = "C:\Program Files\Notepad++"
+            ReadOnly = "true"
+        }
+        Write-LogMessage -Message_Type "INFO" -Message "Using the Notepad++ installation of the host: $NotepadPlusPlus_Path"
+    } else {
+        try {
+            Add-NotepadToSandbox -EnforceEnUsFallback
+        } catch {
+            Write-LogMessage -Message_Type "WARNING" -Message "Notepad payload could not be prepared: $($_.Exception.Message)"
+        }
+    }
     
     if ($Sandbox_WSB_Location -eq "Default") {
         $Sandbox_File_Path = "$env:temp\$FileName.wsb"
@@ -72,7 +86,8 @@ function New-WSB {
 
     if ($Type -eq "SDBApp" -and $ScriptPath) {
         $SDB_Full_Path = $ScriptPath
-        Copy-Item $ScriptPath $Run_in_Sandbox_Folder -Force
+        # AppBundle_Install.ps1 reads App_Bundle.sdbapp
+        Copy-Item $ScriptPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp" -Force
         $Get_Apps_to_install = [xml](Get-Content $SDB_Full_Path)
         $Apps_to_install_path = $Get_Apps_to_install.Applications.Application.Path | Select-Object -Unique
 
@@ -80,7 +95,7 @@ function New-WSB {
             Get-ChildItem -LiteralPath $App_Path -Recurse | Unblock-File
             Add-Content -LiteralPath $Sandbox_File_Path -Value "        <MappedFolder>"
             Add-Content -LiteralPath $Sandbox_File_Path -Value "            <HostFolder>$App_Path</HostFolder>"
-            Add-Content -LiteralPath $Sandbox_File_Path -Value "            <SandboxFolder>C:\SBDApp</SandboxFolder>"
+            Add-Content -LiteralPath $Sandbox_File_Path -Value "            <SandboxFolder>C:\SBDApp\$($App_Path.Split('\')[-1])</SandboxFolder>"
             Add-Content -LiteralPath $Sandbox_File_Path -Value "            <ReadOnly>$Sandbox_ReadOnlyAccess</ReadOnly>"
             Add-Content -LiteralPath $Sandbox_File_Path -Value "        </MappedFolder>"
         }
@@ -113,6 +128,37 @@ function New-WSB {
     Add-Content -LiteralPath $Sandbox_File_Path  -Value "</Configuration>"
 }
 
+function Find-HostNotepadPlusPlus {
+    $CommonPaths = @(
+        "${env:ProgramFiles}\Notepad++\notepad++.exe",
+        "${env:ProgramFiles(x86)}\Notepad++\notepad++.exe"
+    )
+    foreach ($Path in $CommonPaths) {
+        if ( (-not [string]::IsNullOrEmpty($Path)) -and (Test-Path -LiteralPath $Path) ) {
+            return $Path
+        }
+    }
+
+    $InstallFolders = @(
+        (Get-ItemProperty -Path "HKLM:\SOFTWARE\Notepad++" -ErrorAction SilentlyContinue)."(default)"
+        (Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Notepad++" -ErrorAction SilentlyContinue)."(default)"
+        (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++" -ErrorAction SilentlyContinue).InstallLocation
+        (Get-ItemProperty -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Notepad++" -ErrorAction SilentlyContinue).InstallLocation
+    )
+    foreach ($Install_Folder in $InstallFolders) {
+        if ( (-not [string]::IsNullOrEmpty($Install_Folder)) -and (Test-Path -LiteralPath "$Install_Folder\notepad++.exe") ) {
+            return "$Install_Folder\notepad++.exe"
+        }
+    }
+
+    $NotepadPlusPlusInPath = Get-Command "notepad++.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+    if ($NotepadPlusPlusInPath) {
+        return $NotepadPlusPlusInPath.Source
+    }
+
+    return $null
+}
+
 function Remove-Leftovers {
     param(
         [Parameter(Mandatory=$true)]
@@ -125,5 +171,6 @@ function Remove-Leftovers {
 
 Export-ModuleMember -Function @(
     'New-WSB',
+    'Find-HostNotepadPlusPlus',
     'Remove-Leftovers'
 )

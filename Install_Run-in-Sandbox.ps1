@@ -33,7 +33,7 @@
 param (
     [switch]$NoCheckpoint,
     [switch]$DeepClean,
-    [string]$Branch = "master",
+    [string]$Branch,
     [string]$OriginalUserSid
 )
 
@@ -68,6 +68,18 @@ $RepoName = "Run-in-Sandbox"
 # Globals
 $Run_in_Sandbox_Folder = "$env:ProgramData\Run_in_Sandbox"
 $IsInstalled = Test-Path $Run_in_Sandbox_Folder
+
+# Updates stay on the installed branch unless -Branch is given
+if (-not $Branch) {
+    $Branch = "master"
+    $InstalledVersionJson = Join-Path $Run_in_Sandbox_Folder "version.json"
+    if (Test-Path $InstalledVersionJson) {
+        try {
+            $InstalledBranchName = (Get-Content $InstalledVersionJson -Raw | ConvertFrom-Json).branch
+            if ($InstalledBranchName) { $Branch = $InstalledBranchName }
+        } catch { }
+    }
+}
 
 # ======================================================================================
 # Function to dynamically load modules from GitHub
@@ -269,9 +281,8 @@ try {
     }
     Update-CoreFiles @syncParams
     
-    if ($IsInstalled) {
-        Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
-    }
+    # Also after a deep-clean, which resets $IsInstalled
+    Restore-CustomStartupScripts -RunFolder $Run_in_Sandbox_Folder
     Get-VersionJson -RunFolder $Run_in_Sandbox_Folder -ExtractPath $extractPath -EffectiveBranch $Branch -LatestVersion $LatestVersion
 
     $valid = Test-Installation -RunFolder $Run_in_Sandbox_Folder
