@@ -97,11 +97,11 @@ if ($Add_Folder -eq $True) {
 Write-Progress -Activity $Progress_Activity -PercentComplete 35
 
 if ($Add_HTML -eq $True) {
+    # SystemFileAssociations covers every default browser, no browser ProgIDs needed.
+    # .url files use the InternetShortcut ProgID, so IE.AssocFile.URL never showed
     Add-RegItem -Sub_Reg_Path "SystemFileAssociations\.html" -Type "HTML" -Key_Label "Run this web link in Sandbox"
-    Add-RegItem -Sub_Reg_Path "MSEdgeHTM" -Type "HTML" -Key_Label "Run this web link in Sandbox"
-    Add-RegItem -Sub_Reg_Path "ChromeHTML" -Type "HTML" -Key_Label "Run this web link in Sandbox"
-    Add-RegItem -Sub_Reg_Path "IE.AssocFile.HTM" -Type "HTML" -Key_Label "Run this web link in Sandbox"
-    Add-RegItem -Sub_Reg_Path "IE.AssocFile.URL" -Type "HTML" -Key_Label "Run this URL in Sandbox"
+    Add-RegItem -Sub_Reg_Path "SystemFileAssociations\.htm" -Type "HTML" -Key_Label "Run this web link in Sandbox"
+    Add-RegItem -Sub_Reg_Path "SystemFileAssociations\.url" -Type "HTML" -Key_Label "Run this URL in Sandbox"
 }
 Write-Progress -Activity $Progress_Activity -PercentComplete 40
 
@@ -126,16 +126,15 @@ Write-Progress -Activity $Progress_Activity -PercentComplete 55
 if ($Add_MSIX -eq $True) {
     $MSIX_Shell_Registry_Key = "Registry::HKEY_CLASSES_ROOT\.msix\OpenWithProgids"
     if (Test-Path -Path $MSIX_Shell_Registry_Key) {
-        $Get_Default_Value = (Get-Item -Path $MSIX_Shell_Registry_Key).Property
-        if ($Get_Default_Value) {
-            Add-RegItem -Sub_Reg_Path "$Get_Default_Value" -Type "MSIX"
-        } 
+        ForEach ($ProgId in (Get-Item -Path $MSIX_Shell_Registry_Key).Property) {
+            Add-RegItem -Sub_Reg_Path "$ProgId" -Type "MSIX"
+        }
     }
-    $Default_MSIX_HKCU = "$HKCU_Classes\.msix"
-    if (Test-Path -Path $Default_MSIX_HKCU) {
-        $Get_Default_Value = (Get-Item -Path "$Default_MSIX_HKCU\OpenWithProgids").Property
-        if ($Get_Default_Value) {
-            Add-RegItem -Reg_Path $HKCU_Classes -Sub_Reg_Path "$Get_Default_Value" -Type "MSIX"
+    # A missing OpenWithProgids would abort the install (ErrorActionPreference Stop)
+    $Default_MSIX_HKCU_ProgIds = "$HKCU_Classes\.msix\OpenWithProgids"
+    if (Test-Path -Path $Default_MSIX_HKCU_ProgIds) {
+        ForEach ($ProgId in (Get-Item -Path $Default_MSIX_HKCU_ProgIds).Property) {
+            Add-RegItem -Reg_Path $HKCU_Classes -Sub_Reg_Path "$ProgId" -Type "MSIX"
         }
     }
 }
@@ -232,6 +231,9 @@ if ($Add_ZIP -eq $True) {
     if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\WinRAR.ZIP") {
         Add-RegItem -Sub_Reg_Path "WinRAR.ZIP" -Type "ZIP" -Key_Label "Extract ZIP (WinRAR) in Sandbox"
     }
+
+    # Run on ZIP with any other default app (7-Zip, PeaZip, ...), also if it changes later
+    Add-RegItem -Sub_Reg_Path "SystemFileAssociations\.zip" -Type "ZIP" -Key_Label "Extract ZIP in Sandbox"
     
     # Run on 7z
     if (Test-Path -Path "Registry::HKEY_CLASSES_ROOT\Applications\7zFM.exe") {

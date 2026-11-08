@@ -37,8 +37,12 @@ function New-WSB {
     $Sandbox_ClipboardRedirection = $my_xml.Configuration.ClipboardRedirection
     $Sandbox_MemoryInMB = $my_xml.Configuration.MemoryInMB
     
-    # Prepare Notepad payload
-    Add-NotepadToSandbox -EnforceEnUsFallback
+    # Prepare Notepad payload, optional
+    try {
+        Add-NotepadToSandbox -EnforceEnUsFallback
+    } catch {
+        Write-LogMessage -Message_Type "WARNING" -Message "Notepad payload could not be prepared: $($_.Exception.Message)"
+    }
     
     if ($Sandbox_WSB_Location -eq "Default") {
         $Sandbox_File_Path = "$env:temp\$FileName.wsb"
@@ -72,7 +76,8 @@ function New-WSB {
 
     if ($Type -eq "SDBApp" -and $ScriptPath) {
         $SDB_Full_Path = $ScriptPath
-        Copy-Item $ScriptPath $Run_in_Sandbox_Folder -Force
+        # AppBundle_Install.ps1 reads App_Bundle.sdbapp
+        Copy-Item $ScriptPath "$Run_in_Sandbox_Folder\App_Bundle.sdbapp" -Force
         $Get_Apps_to_install = [xml](Get-Content $SDB_Full_Path)
         $Apps_to_install_path = $Get_Apps_to_install.Applications.Application.Path | Select-Object -Unique
 
@@ -80,7 +85,7 @@ function New-WSB {
             Get-ChildItem -LiteralPath $App_Path -Recurse | Unblock-File
             Add-Content -LiteralPath $Sandbox_File_Path -Value "        <MappedFolder>"
             Add-Content -LiteralPath $Sandbox_File_Path -Value "            <HostFolder>$App_Path</HostFolder>"
-            Add-Content -LiteralPath $Sandbox_File_Path -Value "            <SandboxFolder>C:\SBDApp</SandboxFolder>"
+            Add-Content -LiteralPath $Sandbox_File_Path -Value "            <SandboxFolder>C:\SBDApp\$($App_Path.Split('\')[-1])</SandboxFolder>"
             Add-Content -LiteralPath $Sandbox_File_Path -Value "            <ReadOnly>$Sandbox_ReadOnlyAccess</ReadOnly>"
             Add-Content -LiteralPath $Sandbox_File_Path -Value "        </MappedFolder>"
         }

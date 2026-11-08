@@ -30,7 +30,11 @@ function Enable-StartupScripts {
     if ($OriginalCommand -ne "") {
        # Write the original command into a file
         $origCmdFile = Join-Path $StartupScriptsFolder "OriginalCommand.txt"
-        Set-Content -LiteralPath $origCmdFile -Value $OriginalCommand -Encoding UTF8 -Force 
+        try {
+            Set-Content -LiteralPath $origCmdFile -Value $OriginalCommand -Encoding UTF8 -Force -ErrorAction Stop
+        } catch {
+            throw "The command for the sandbox could not be written to `"$origCmdFile`": $($_.Exception.Message)"
+        }
     }
 
     # Orchestrator that runs NN-*.ps1 in lexicographic order, then runs the original command
@@ -138,7 +142,21 @@ if (Test-Path -LiteralPath `$origFile) {
 "@
 
     $orchestratorPath = Join-Path $StartupScriptsFolder "_orchestrator.ps1"
-    Set-Content -LiteralPath $orchestratorPath -Value $orchestrator -Encoding UTF8 -Force
+    # Installed elevated, so a standard user may not be allowed to overwrite it
+    $orchestratorOnDisk = ""
+    if (Test-Path -LiteralPath $orchestratorPath) {
+        $orchestratorOnDisk = [string](Get-Content -LiteralPath $orchestratorPath -Raw -ErrorAction SilentlyContinue)
+    }
+    if ($orchestratorOnDisk.TrimEnd() -ne $orchestrator.TrimEnd()) {
+        try {
+            Set-Content -LiteralPath $orchestratorPath -Value $orchestrator -Encoding UTF8 -Force -ErrorAction Stop
+        } catch {
+            if (-not (Test-Path -LiteralPath $orchestratorPath)) {
+                throw
+            }
+            Write-LogMessage -Message_Type "WARNING" -Message "Could not update `"$orchestratorPath`" ($($_.Exception.Message)), the existing version is used instead"
+        }
+    }
 
     # Return the single Sandbox command that runs the orchestrator
     "C:\Run_in_Sandbox\ServiceUI.exe -Process:explorer.exe C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe -sta -WindowStyle Normal -NoProfile -ExecutionPolicy Bypass -NoExit -File `"$Sandbox_Root_Path\$StartupScriptFolderName\_orchestrator.ps1`""
@@ -154,8 +172,13 @@ function Add-NotepadToSandbox {
 
     # Resolve a single notepad.exe (prefer System32)
     $exeCandidates = Get-Command notepad.exe -ErrorAction Stop | Select-Object -ExpandProperty Source
+    # Skip the 0 byte app execution alias in WindowsApps
+    $exeCandidates = $exeCandidates | Where-Object { (Test-Path -LiteralPath $_) -and ((Get-Item -LiteralPath $_).Length -gt 0) }
     $exePath = ($exeCandidates | Where-Object { $_ -match '\\Windows\\System32\\' } | Select-Object -First 1)
     if (-not $exePath) { $exePath = $exeCandidates | Select-Object -First 1 }
+    if (-not $exePath) {
+        throw "No usable notepad.exe found, the classic Notepad seems to be removed from this system."
+    }
 
     $exeDir  = Split-Path $exePath -Parent
     $exeName = Split-Path $exePath -Leaf
@@ -194,16 +217,18 @@ function Add-NotepadToSandbox {
         }
     }
 
-    if (-not $muiPath) {
-        throw "Could not locate notepad.exe.mui for $exePath. On some systems Notepad is a Store app without a classic MUI."
-    }
-
     # Stage payload on host: System32\notepad.exe and System32\<lang>\notepad.exe.mui
     $sys32Out = Join-Path $HostPayloadRoot "System32"
-    $langOut  = Join-Path $sys32Out $resolvedLang
-    New-Item -ItemType Directory -Path $langOut -Force | Out-Null
-    Copy-Item -LiteralPath $exePath -Destination (Join-Path $sys32Out $exeName) -Force
-    Copy-Item -LiteralPath $muiPath -Destination (Join-Path $langOut "$exeName.mui") -Force
+    New-Item -ItemType Directory -Path $sys32Out -Force -ErrorAction Stop | Out-Null
+    Copy-Item -LiteralPath $exePath -Destination (Join-Path $sys32Out $exeName) -Force -ErrorAction Stop
+
+    if ($muiPath) {
+        $langOut = Join-Path $sys32Out $resolvedLang
+        New-Item -ItemType Directory -Path $langOut -Force -ErrorAction Stop | Out-Null
+        Copy-Item -LiteralPath $muiPath -Destination (Join-Path $langOut "$exeName.mui") -Force -ErrorAction Stop
+    } else {
+        Write-LogMessage -Message_Type "WARNING" -Message "No notepad.exe.mui found for $exePath, notepad is copied without its localized strings"
+    }
 }
 
 Export-ModuleMember -Function @(

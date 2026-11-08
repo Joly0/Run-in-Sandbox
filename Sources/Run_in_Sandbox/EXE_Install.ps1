@@ -7,7 +7,7 @@ $Executable = Split-Path($Content.Split('"')[1]) -Leaf
 $Executable = "./$Executable"
 $Arguments = ($Content.Split('"',3)[-1]).Trim()
 
-$Command = $Executable + " " + $Arguments
+$Command = "& '$($Executable -replace "'", "''")' " + $Arguments
 
 Set-Location -Path $BaseFolder
 
