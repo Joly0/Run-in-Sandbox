@@ -145,7 +145,7 @@ function Initialize-7ZipCache {
     # Try to update if needed (network available)
     try {
         if (Test-7ZipCacheAge) {
-            Update-7ZipCache
+            $null = Update-7ZipCache
         }
     } catch {
         Write-LogMessage -Message_Type "WARNING" -Message "Could not check for 7-Zip updates, using cached version if available"
